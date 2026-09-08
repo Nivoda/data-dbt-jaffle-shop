@@ -554,12 +554,12 @@ models:
         data_tests: [not_null]
 
   - name: mart_commerce__customer_360
-    description: Bounded Customer 360 decision mart for customer identity, contactability, and commercial posture. The grain is one customer.
+    description: Bounded Customer 360 decision mart for customer identity, contactability, and commercial posture. It is the single purpose-specific customer consumption mart in this reference implementation. The grain is one current customer.
     config:
       schema: marts
       alias: mart_commerce__customer_360
       meta:
-        grain: one customer
+        grain: one current customer
         model_class: analytical decision mart
         status: purpose-specific
         intended_consumers: [customer_360_review, business_operations]
@@ -576,3 +576,28 @@ models:
           - accepted_values:
               arguments:
                 values: ['high_value', 'active_value', 'no_completed_revenue']
+      - name: first_ordered_at
+        description: First order timestamp aggregated directly from fct_order.
+      - name: last_ordered_at
+        description: Most recent order timestamp aggregated directly from fct_order.
+      - name: order_count
+        description: Customer order count aggregated directly from fct_order.
+        data_tests: [not_null]
+      - name: completed_order_count
+        description: Completed positive-value order count aggregated directly from fct_order.
+        data_tests: [not_null]
+      - name: gross_revenue
+        description: Gross order value aggregated directly from fct_order.
+        data_tests: [not_null]
+      - name: completed_revenue
+        description: Completed captured revenue aggregated directly from fct_order.
+        data_tests: [not_null]
+      - name: has_repeat_order
+        description: True when fct_order shows at least one repeat order for the customer.
+        data_tests: [not_null]
+      - name: is_email_contactable
+        description: True when dim_customer supplies a selected primary email address.
+        data_tests: [not_null]
+      - name: is_phone_contactable
+        description: True when dim_customer supplies a selected primary phone number.
+        data_tests: [not_null]

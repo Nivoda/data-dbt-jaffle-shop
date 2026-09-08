@@ -1,11 +1,8 @@
 config-version: 2
 
-name: "jaffle_shop"
+name: "data_dbt_architecture"
 version: "3.0.0"
 require-dbt-version: ">=1.12.0"
-
-dbt-cloud:
-  project-id: 275557 # Put your project id here
 
 profile: default # Put your profile here
 
@@ -22,9 +19,9 @@ clean-targets:
   - "dbt_packages"
 
 seeds:
-  jaffle_shop:
+  data_dbt_architecture:
     +schema: raw
-    jaffle-data:
+    ecom:
       +enabled: "{{ var('load_source_data', false) }}"
       raw_users:
         +column_types:
@@ -75,7 +72,7 @@ seeds:
           captured_at: timestamp
 
 models:
-  jaffle_shop:
+  data_dbt_architecture:
     "0. landing":
       +materialized: view
       "0. external":

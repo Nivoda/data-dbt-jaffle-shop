@@ -3,7 +3,7 @@ version: 2
 sources:
   - name: ecom
     schema: raw
-    description: E-commerce data for the Jaffle Shop
+    description: Static e-commerce source fixture data for the architecture playground.
     tables:
       - name: raw_customers
         description: One record per person who has purchased one or more items

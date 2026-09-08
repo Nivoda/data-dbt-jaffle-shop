@@ -1,7 +1,7 @@
 {{ config(alias='pump_customer_marketing_eligibility', contract={'enforced': true}) }}
 
 with customers as (
-    select * from {{ ref('rpt_customer_commercial_summary') }}
+    select * from {{ ref('mart_commerce__customer_360') }}
 )
 
 select

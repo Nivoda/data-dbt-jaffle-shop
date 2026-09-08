@@ -2,17 +2,10 @@ version: "3"
 
 silent: true
 
-vars:
-  YEARS: 6
-
 tasks:
   install:
     cmds:
       - uv sync
-
-  gen:
-    cmds:
-      - uv run jafgen {{.YEARS}} && rm -rf seeds/jaffle-data && mv jaffle-data seeds
 
   seed:
     cmds:
@@ -30,10 +23,9 @@ tasks:
 
   clean:
     cmds:
-      - rm -rf jaffle-data
+      - rm -rf target dbt_packages
 
   load:
     cmds:
       - task: install
-      - task: gen
       - task: seed

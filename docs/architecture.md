@@ -10,7 +10,7 @@ Source / JSON landing -> landing -> staging
                                                            `-> semantic
 ```
 
-The original Jaffle Shop starter staging and mart models have been removed from the active model estate. The active project has one unambiguous staging path and one unambiguous mart layer.
+The original starter staging and mart models have been removed from the active model estate. The active project has one unambiguous staging path and one unambiguous mart layer.
 
 ## Layer Purpose And Allowed Dependencies
 
@@ -23,7 +23,7 @@ The original Jaffle Shop starter staging and mart models have been removed from 
 | logical | Reusable intermediate transformations: joins, reconciliation, sequencing, and derived states. | staging |
 | objects | Canonical durable business entities/events at stable grains. | staging and logical |
 | marts | Analytical layer containing distinct facts, dimensions, and reports. | objects, logical, and other marts where a bounded report/mart composes governed mart models |
-| operations | Data quality, reconciliation, freshness, observability, and pumps. | controls may reference multiple layers; pumps may reference purpose-specific marts/reports only |
+| operations | Data quality, reconciliation, freshness, observability, and pumps. | controls may reference multiple layers; pumps may reference purpose-specific marts only |
 | semantic | Metric and entity definitions. | trusted canonical objects and mart facts only |
 
 ## Lineage
@@ -88,9 +88,8 @@ flowchart LR
   fct["fct_order"]
   fctl["fct_order_line"]
   dimc["dim_customer"]
-  rpt["rpt_customer_commercial_summary"]
   facts["mart facts: fct_order, fct_order_line"]
-  reports["mart reports: rpt_customer_commercial_summary, mart_commerce__customer_360"]
+  reports["mart reports: mart_commerce__customer_360"]
   dims["mart dimensions: dim_customer"]
   c360["mart_commerce__customer_360"]
   pump["pump_customer_marketing_eligibility"]
@@ -160,12 +159,10 @@ flowchart LR
   fct --> facts
   fctl --> facts
   dimc --> dims
-  facts --> rpt
-  rpt --> reports
+  facts --> c360
   dims --> c360
-  rpt --> c360
   c360 --> reports
-  reports --> pump
+  c360 --> pump
   objc --> sem
   facts --> sem
   stgo --> ops
@@ -235,8 +232,7 @@ flowchart LR
 | `fct_order` | One order |
 | `fct_order_line` | One order line |
 | `dim_customer` | One current analytical customer dimension row |
-| `rpt_customer_commercial_summary` | One customer commercial summary |
-| `mart_commerce__customer_360` | One bounded Customer 360 row |
+| `mart_commerce__customer_360` | One current customer |
 | `pump_customer_marketing_eligibility` | One customer audience identity |
 | `sem_metricflow_time_spine` | One calendar day for semantic metric joins |
 | `ops_order_count_reconciliation` | One reconciliation result |
@@ -258,8 +254,7 @@ flowchart LR
 | `fct_order` | One order | conformed analytical fact | canonical/reusable | analytics, reports, semantic definitions |
 | `fct_order_line` | One order line | conformed analytical fact | canonical/reusable | analytics, reports, semantic definitions |
 | `dim_customer` | One customer | analytical dimension | purpose-specific analytical shape | analytics, reports |
-| `rpt_customer_commercial_summary` | One customer commercial summary | analytical report | purpose-specific | business reporting, operations pumps |
-| `mart_commerce__customer_360` | One customer | analytical decision mart | purpose-specific | customer 360 review, business operations |
+| `mart_commerce__customer_360` | One current customer | analytical decision mart | purpose-specific | customer 360 review, business operations, operations pumps |
 
 ## Why Each Transformation Belongs Where It Is
 
@@ -281,9 +276,9 @@ Customer key lineage is canonicalized in objects: staging customer records gener
 
 Product/order-line key lineage is also canonicalized in objects: staging product records generate `obj_product.product_sk`; staging order-line records join through `obj_order` and `obj_product` so `obj_order_line` carries canonical `order_sk` and `product_sk`; `fct_order_line` and the order-level line measures in `fct_order` consume those object keys rather than regenerating them.
 
-The marts layer contains analytical facts, dimensions, and bounded reports as distinct model types. This reference has conformed facts (`fct_order`, `fct_order_line`), a deliberately shaped analytical customer dimension (`dim_customer`), a commercial summary report (`rpt_customer_commercial_summary`), and a bounded Customer 360 decision mart (`mart_commerce__customer_360`). `dim_customer` exists because it resolves current contact/address attributes through canonical identity and relationship objects for analytical consumption; it does not replace `obj_customer` as the canonical identity/relationship anchor.
+The marts layer contains analytical facts, dimensions, and bounded purpose-specific consumption marts as distinct model types. This reference has conformed facts (`fct_order`, `fct_order_line`), a deliberately shaped analytical customer dimension (`dim_customer`), and a bounded Customer 360 decision mart (`mart_commerce__customer_360`). Customer 360 is the single purpose-specific customer consumption mart: it combines selected contact/address attributes from `dim_customer` with commercial measures aggregated directly from `fct_order`. `dim_customer` exists because it resolves current contact/address attributes through canonical identity and relationship objects for analytical consumption; it does not replace `obj_customer` as the canonical identity/relationship anchor.
 
-The pump under operations is a narrow, frozen, machine-consumed delivery contract. It consumes only purpose-specific mart reports, exposes `_pumped_at`, enforces a dbt contract with explicit column types, and documents its consumer, grain, refresh expectation, required fields, exclusions, and owner placeholder.
+The pump under operations is a narrow, frozen, machine-consumed delivery contract. It consumes only the purpose-specific Customer 360 mart, exposes `_pumped_at`, enforces a dbt contract with explicit column types, and documents its consumer, grain, refresh expectation, required fields, exclusions, and owner placeholder.
 
 The semantic layer is physically separate under `models/5. semantic/`. It uses dbt Core 1.12+ model-attached `semantic_model` metadata on governed models: `obj_customer` for the Customer entity and attributes, `fct_order` for Order metrics and time-based analysis, and `fct_order_line` for line-grain analysis with canonical Order and Product foreign entities. The semantic YAML uses trusted objects and mart facts only; it does not reference staging, systems, logical, landing, or Source / JSON landing models. Metric `config.meta.permitted_dimensions` lists the intended governed dimensions/entities for each metric so the permission model is explicit in metadata as well as prose.
 
@@ -308,7 +303,6 @@ flowchart LR
   dim_customer["dim_customer<br/>mart dimension"]
   order_fact["fct_order<br/>mart fact"]
   line_fact["fct_order_line<br/>mart fact"]
-  report["rpt_customer_commercial_summary<br/>mart report"]
   c360["mart_commerce__customer_360<br/>bounded decision mart"]
   pump["pump_customer_marketing_eligibility<br/>operations pump"]
   semantic["semantic definitions<br/>trusted objects + facts"]
@@ -326,10 +320,9 @@ flowchart LR
   customer --> dim_customer
   user --> dim_customer
   address --> dim_customer
-  order_fact --> report
   dim_customer --> c360
-  report --> c360
-  report --> pump
+  order_fact --> c360
+  c360 --> pump
   customer --> semantic
   order_fact --> semantic
   line_fact --> semantic

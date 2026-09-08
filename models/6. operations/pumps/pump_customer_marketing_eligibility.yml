@@ -5,7 +5,7 @@ models:
     description: >
       Narrow, frozen delivery contract for a hypothetical post-purchase marketing journey.
       Intended consumer: marketing automation platform. The grain is one customer audience identity.
-      Refresh expectation: daily after mart models complete. Required fields: customer_id,
+      Refresh expectation: daily after Customer 360 completes. Required fields: customer_id,
       customer_name, first_ordered_at, last_ordered_at, order_count, completed_order_count,
       completed_revenue, is_eligible_for_post_purchase_journey, eligibility_reason, and _pumped_at.
       Exclusions: no completed purchase, no revenue, and existing repeat customers.
@@ -30,15 +30,15 @@ models:
         data_type: varchar
         data_tests: [not_null]
       - name: first_ordered_at
-        description: Customer first order timestamp from the customer commercial report.
+        description: Customer first order timestamp from Customer 360.
         data_type: timestamp
         data_tests: [not_null]
       - name: last_ordered_at
-        description: Customer latest order timestamp from the customer commercial report.
+        description: Customer latest order timestamp from Customer 360.
         data_type: timestamp
         data_tests: [not_null]
       - name: order_count
-        description: Customer order count from the customer commercial report.
+        description: Customer order count from Customer 360.
         data_type: integer
         data_tests: [not_null]
       - name: completed_order_count

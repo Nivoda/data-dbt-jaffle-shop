@@ -1,6 +1,6 @@
-# dbt Jaffle Shop Architecture Playground
+# Data dbt Architecture Playground
 
-This repository is a static, runnable reference implementation of a layered dbt architecture using a compact Jaffle Shop commerce domain.
+This repository is a static, runnable reference implementation of a governed layered dbt architecture using a compact commerce domain.
 
 Start here:
 
@@ -34,7 +34,7 @@ The active project intentionally has one unambiguous path through each layer. Th
 
 ## Source Fixtures
 
-The static source fixture set lives in `seeds/jaffle-data/` and is loaded into the `raw` schema:
+The static source fixture set lives in `seeds/ecom/` and is loaded into the `raw` schema:
 
 - `raw_customers`
 - `raw_users`
@@ -62,7 +62,7 @@ uv run dbt test --profiles-dir .
 uv run dbt source freshness --profiles-dir .
 ```
 
-DuckDB takes a file lock on `target/jaffle_shop.duckdb`, so run dbt commands serially.
+DuckDB takes a file lock on `target/data_dbt_architecture.duckdb`, so run dbt commands serially.
 
 ## Active Model Estate
 

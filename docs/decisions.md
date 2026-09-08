@@ -2,7 +2,7 @@
 
 ## Remove Starter Models From Active Model Paths
 
-The original Jaffle Shop starter marts and staging models are removed from active model paths. This avoids retaining parallel staging or mart structures that make the reference architecture ambiguous.
+The original starter marts and staging models are removed from active model paths. This avoids retaining parallel staging or mart structures that make the reference architecture ambiguous.
 
 ## Source / JSON Landing Keeps Source Fidelity
 
@@ -30,7 +30,7 @@ The architectural layer is named logical, but models follow standard dbt interme
 
 ## Marts Are Consumption Models
 
-Marts contain analytical facts, dimensions, and purpose-specific reports or decision marts. This reference keeps `fct_order`, `fct_order_line`, `dim_customer`, `rpt_customer_commercial_summary`, and `mart_commerce__customer_360`. It still does not manufacture a product dimension because the canonical Product object is enough for the current analytical surface.
+Marts contain analytical facts, dimensions, and purpose-specific reports or decision marts. This reference keeps `fct_order`, `fct_order_line`, `dim_customer`, and `mart_commerce__customer_360`. Customer 360 is the single purpose-specific customer consumption mart, combining selected attributes from `dim_customer` with commercial measures aggregated from `fct_order`. The project still does not manufacture a product dimension because the canonical Product object is enough for the current analytical surface.
 
 ## Dimensions Are A Mart Subtype, Not Object Synonyms
 
@@ -40,7 +40,7 @@ Marts contain analytical facts, dimensions, and purpose-specific reports or deci
 
 ## Pumps Are Operations Delivery Contracts
 
-`pump_customer_marketing_eligibility` lives under `models/operations/pumps/`, consumes only marts, exposes `_pumped_at`, and uses an enforced dbt contract with explicit column types. It is a narrow machine-consumed contract, not a report renamed as an extract.
+`pump_customer_marketing_eligibility` lives under `models/operations/pumps/`, consumes only `mart_commerce__customer_360`, exposes `_pumped_at`, and uses an enforced dbt contract with explicit column types. It is a narrow machine-consumed contract, not a report renamed as an extract.
 
 ## Semantic Definitions Are Separate, Current, And Trusted
 

@@ -1,13 +1,12 @@
 [project]
-name = "data-dbt-jaffle-shop"
+name = "data-dbt-architecture"
 version = "3.0.0"
-description = "A static dbt Jaffle Shop reference implementation for a layered analytics architecture."
+description = "A static dbt reference implementation for a governed layered analytics architecture."
 readme = "README.md"
 requires-python = ">=3.12,<3.14"
 dependencies = [
   "dbt-core==1.12.3",
   "dbt-duckdb==1.9.4",
-  "jafgen==0.4.12",
   "pre-commit==3.7.0",
   "requests==2.31.0",
 ]

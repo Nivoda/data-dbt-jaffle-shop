@@ -42,7 +42,7 @@ models:
         description: Source-faithful semi-structured order JSON payload.
 
   - name: ext_ecom__payments
-    description: Synthetic source-faithful JSON/CDC payment ingestion events derived from Jaffle Shop orders. The grain is one source payment CDC event.
+    description: Synthetic source-faithful JSON/CDC payment ingestion events derived from source orders. The grain is one source payment CDC event.
     config:
       schema: source_json
       alias: ext_ecom__payments
@@ -521,26 +521,6 @@ models:
               arguments:
                 to: ref('obj_order')
                 field: order_id
-
-  - name: rpt_customer_commercial_summary
-    description: Purpose-specific customer commercial summary report, not a dimension. The grain is one customer.
-    config:
-      schema: marts
-      alias: rpt_customer_commercial_summary
-      meta:
-        grain: one customer commercial summary
-        model_class: analytical report
-        status: purpose-specific
-        intended_consumers: [business_reporting, operations_pumps]
-    columns:
-      - name: customer_sk
-        description: Customer surrogate key from obj_customer.
-        data_tests: [not_null, unique]
-      - name: customer_id
-        description: Natural customer key.
-        data_tests: [not_null, unique]
-      - name: completed_revenue
-        description: Revenue from completed orders only.
 
   - name: ops_order_count_reconciliation
     description: Reconciliation view proving order counts remain stable from staging to object to mart fact. The grain is one reconciliation result.
