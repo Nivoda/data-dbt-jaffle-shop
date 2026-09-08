@@ -1,0 +1,39 @@
+version: "3"
+
+silent: true
+
+vars:
+  YEARS: 6
+
+tasks:
+  install:
+    cmds:
+      - uv sync
+
+  gen:
+    cmds:
+      - uv run jafgen {{.YEARS}} && rm -rf seeds/jaffle-data && mv jaffle-data seeds
+
+  seed:
+    cmds:
+      - >
+        uv run dbt seed --full-refresh --vars '{"load_source_data": true}' --profiles-dir .
+
+  build:
+    cmds:
+      - uv run dbt deps
+      - uv run dbt parse --profiles-dir .
+      - uv run dbt seed --full-refresh --vars '{"load_source_data": true}' --profiles-dir .
+      - uv run dbt build --profiles-dir .
+      - uv run dbt test --profiles-dir .
+      - uv run dbt source freshness --profiles-dir .
+
+  clean:
+    cmds:
+      - rm -rf jaffle-data
+
+  load:
+    cmds:
+      - task: install
+      - task: gen
+      - task: seed

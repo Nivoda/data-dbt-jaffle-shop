@@ -1,0 +1,155 @@
+config-version: 2
+
+name: "jaffle_shop"
+version: "3.0.0"
+require-dbt-version: ">=1.12.0"
+
+dbt-cloud:
+  project-id: 275557 # Put your project id here
+
+profile: default # Put your profile here
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["data-tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+seeds:
+  jaffle_shop:
+    +schema: raw
+    jaffle-data:
+      +enabled: "{{ var('load_source_data', false) }}"
+      raw_users:
+        +column_types:
+          id: varchar
+          name: varchar
+          email: varchar
+          phone: varchar
+          status: varchar
+          created_at: timestamp
+      raw_customer_users:
+        +column_types:
+          id: varchar
+          customer_id: varchar
+          user_id: varchar
+          relationship_role: varchar
+          is_primary_contact: boolean
+          valid_from: timestamp
+          valid_to: timestamp
+      raw_addresses:
+        +column_types:
+          id: varchar
+          address_line_1: varchar
+          city: varchar
+          state: varchar
+          postal_code: varchar
+          country_code: varchar
+          created_at: timestamp
+      raw_customer_addresses:
+        +column_types:
+          id: varchar
+          customer_id: varchar
+          address_id: varchar
+          address_usage: varchar
+          is_default_address: boolean
+          valid_from: timestamp
+          valid_to: timestamp
+      raw_order_address_snapshots:
+        +column_types:
+          id: varchar
+          order_id: varchar
+          customer_id: varchar
+          source_address_id: varchar
+          address_line_1: varchar
+          city: varchar
+          state: varchar
+          postal_code: varchar
+          country_code: varchar
+          captured_at: timestamp
+
+models:
+  jaffle_shop:
+    "0. landing":
+      +materialized: view
+      "0. external":
+        +schema: source_json
+        +meta:
+          grain: one source CDC event
+          model_class: source-faithful external ingestion
+          status: private ingestion contract
+          intended_consumers: [landing]
+      "1. raw":
+        +schema: landing
+        +meta:
+          grain: one current source key
+          model_class: current landing record
+          status: private trusted source record
+          intended_consumers: [staging]
+    "1. staging":
+      +materialized: view
+      +schema: staging
+      +meta:
+        grain: one current source object
+        model_class: source-specific staging model
+        status: private source-conformed model
+        intended_consumers: [logical, objects, systems, operations_controls]
+    "2a. objects":
+      +materialized: table
+      +schema: objects
+    "2b. systems":
+      +materialized: view
+      +schema: systems
+      +meta:
+        grain: one current source-conformed staging object
+        model_class: staging access view
+        status: controlled access branch
+        intended_consumers: [controlled_source_access]
+    "3. logical":
+      +materialized: view
+      +schema: logical
+      +meta:
+        grain: one reusable intermediate result at declared model grain
+        model_class: reusable logical transformation
+        status: internal reusable logic
+        intended_consumers: [objects, marts, operations_controls]
+    "4. marts":
+      +materialized: table
+      +schema: marts
+      dimensions:
+        +schema: marts
+      facts:
+        +schema: marts
+      reports:
+        +schema: marts
+    "5. semantic":
+      +enabled: true
+      +meta:
+        grain: semantic support object
+        model_class: semantic support model
+        status: reusable
+        intended_consumers: [semantic_definitions]
+    "6. operations":
+      +schema: operations
+      +materialized: view
+      +meta:
+        grain: one operations control result
+        model_class: operations control
+        status: reusable data quality control
+        intended_consumers: [data_quality, observability]
+      pumps:
+        +materialized: table
+        +meta:
+          grain: one pump delivery record
+          model_class: operations pump delivery contract
+          status: frozen machine-consumed contract
+          intended_consumers: [external_operational_consumers]
+
+flags:
+  require_generic_test_arguments_property: true

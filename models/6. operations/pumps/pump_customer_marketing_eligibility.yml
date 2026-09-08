@@ -1,0 +1,67 @@
+version: 2
+
+models:
+  - name: pump_customer_marketing_eligibility
+    description: >
+      Narrow, frozen delivery contract for a hypothetical post-purchase marketing journey.
+      Intended consumer: marketing automation platform. The grain is one customer audience identity.
+      Refresh expectation: daily after mart models complete. Required fields: customer_id,
+      customer_name, first_ordered_at, last_ordered_at, order_count, completed_order_count,
+      completed_revenue, is_eligible_for_post_purchase_journey, eligibility_reason, and _pumped_at.
+      Exclusions: no completed purchase, no revenue, and existing repeat customers.
+      Owner: owner@example.com placeholder.
+    config:
+      schema: operations
+      alias: pump_customer_marketing_eligibility
+      meta:
+        grain: one customer audience identity
+        model_class: operations pump delivery contract
+        status: frozen machine-consumed contract
+        intended_consumers: [marketing_automation_platform]
+      contract:
+        enforced: true
+    columns:
+      - name: customer_id
+        description: Audience identity for the marketing platform.
+        data_type: varchar
+        data_tests: [not_null, unique]
+      - name: customer_name
+        description: Customer display name delivered to the marketing platform.
+        data_type: varchar
+        data_tests: [not_null]
+      - name: first_ordered_at
+        description: Customer first order timestamp from the customer commercial report.
+        data_type: timestamp
+        data_tests: [not_null]
+      - name: last_ordered_at
+        description: Customer latest order timestamp from the customer commercial report.
+        data_type: timestamp
+        data_tests: [not_null]
+      - name: order_count
+        description: Customer order count from the customer commercial report.
+        data_type: integer
+        data_tests: [not_null]
+      - name: completed_order_count
+        description: Customer completed order count based on captured payments.
+        data_type: integer
+        data_tests: [not_null]
+      - name: completed_revenue
+        description: Customer completed revenue based on captured completed orders.
+        data_type: decimal(16, 2)
+        data_tests: [not_null]
+      - name: is_eligible_for_post_purchase_journey
+        description: True when customer should enter the post-purchase journey.
+        data_type: boolean
+        data_tests: [not_null]
+      - name: eligibility_reason
+        description: Inclusion or exclusion reason for auditability.
+        data_type: varchar
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['eligible', 'exclude_no_completed_purchase', 'exclude_no_revenue', 'exclude_existing_repeat_customer']
+      - name: _pumped_at
+        description: Timestamp when this pump payload was produced.
+        data_type: timestamp
+        data_tests: [not_null]

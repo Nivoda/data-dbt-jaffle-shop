@@ -1,0 +1,606 @@
+version: 2
+
+models:
+  - name: ext_ecom__customers
+    description: Source-faithful JSON/CDC customer ingestion events with extracted fields and ingestion metadata. The grain is one source customer CDC event.
+    config:
+      schema: source_json
+      alias: ext_ecom__customers
+    columns:
+      - name: ingestion_event_id
+        description: Unique identifier for the synthetic ingestion event.
+        data_tests: [not_null, unique]
+      - name: source_record_id
+        description: Customer identifier from the source system.
+        data_tests: [not_null]
+      - name: operation_type
+        description: CDC operation code from the source feed.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['I', 'U', 'D']
+      - name: source_updated_at
+        description: Timestamp when the source record was last changed.
+      - name: record_payload
+        description: Source-faithful semi-structured customer JSON payload.
+
+  - name: ext_ecom__orders
+    description: Source-faithful JSON/CDC order ingestion events with extracted fields and ingestion metadata. The grain is one source order CDC event.
+    config:
+      schema: source_json
+      alias: ext_ecom__orders
+    columns:
+      - name: ingestion_event_id
+        description: Unique identifier for the synthetic ingestion event.
+        data_tests: [not_null, unique]
+      - name: source_record_id
+        description: Order identifier from the source system.
+        data_tests: [not_null]
+      - name: source_updated_at
+        description: Timestamp when the source record was last changed.
+      - name: record_payload
+        description: Source-faithful semi-structured order JSON payload.
+
+  - name: ext_ecom__payments
+    description: Synthetic source-faithful JSON/CDC payment ingestion events derived from Jaffle Shop orders. The grain is one source payment CDC event.
+    config:
+      schema: source_json
+      alias: ext_ecom__payments
+    columns:
+      - name: ingestion_event_id
+        description: Unique identifier for the synthetic ingestion event.
+        data_tests: [not_null, unique]
+      - name: source_record_id
+        description: Payment identifier from the source system.
+        data_tests: [not_null]
+      - name: source_updated_at
+        description: Timestamp when the source record was last changed.
+      - name: record_payload
+        description: Source-faithful semi-structured payment JSON payload.
+
+  - name: ext_ecom__products
+    description: Source-faithful JSON/CDC product ingestion events with extracted fields and ingestion metadata. The grain is one source product CDC event.
+    config:
+      schema: source_json
+      alias: ext_ecom__products
+    columns:
+      - name: ingestion_event_id
+        description: Unique identifier for the synthetic product ingestion event.
+        data_tests: [not_null, unique]
+      - name: source_record_id
+        description: Product identifier from the source system.
+        data_tests: [not_null]
+      - name: operation_type
+        description: CDC operation code from the source feed.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['I', 'U', 'D']
+      - name: record_payload
+        description: Source-faithful semi-structured product JSON payload.
+
+  - name: ext_ecom__order_lines
+    description: Source-faithful JSON/CDC order-line ingestion events with extracted fields and ingestion metadata. The grain is one source order-line CDC event.
+    config:
+      schema: source_json
+      alias: ext_ecom__order_lines
+    columns:
+      - name: ingestion_event_id
+        description: Unique identifier for the synthetic order-line ingestion event.
+        data_tests: [not_null, unique]
+      - name: source_record_id
+        description: Order-line identifier from the source system.
+        data_tests: [not_null]
+      - name: operation_type
+        description: CDC operation code from the source feed.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['I', 'U', 'D']
+      - name: record_payload
+        description: Source-faithful semi-structured order-line JSON payload.
+
+  - name: lnd_ecom__customers_current
+    description: Current trusted customer source record selected from CDC events. The grain is one current source customer key.
+    config:
+      schema: landing
+      alias: lnd_ecom__customers_current
+    columns:
+      - name: source_record_id
+        description: Source customer key; unique after deterministic CDC deduplication.
+        data_tests: [not_null, unique]
+      - name: landing_current_rank
+        description: Rank from the deterministic ordering; retained as proof that selected rows are the winners.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [1]
+      - name: landing_deduplication_order
+        description: Human-readable ordering strategy that explains why the selected row wins.
+
+  - name: lnd_ecom__orders_current
+    description: Current trusted order source record selected from CDC events. The grain is one current source order key.
+    config:
+      schema: landing
+      alias: lnd_ecom__orders_current
+    columns:
+      - name: source_record_id
+        description: Source order key; unique after deterministic CDC deduplication.
+        data_tests: [not_null, unique]
+      - name: landing_current_rank
+        description: Rank from the deterministic ordering; retained as proof that selected rows are the winners.
+
+  - name: lnd_ecom__payments_current
+    description: Current trusted payment source record selected from CDC events. The grain is one current source payment key.
+    config:
+      schema: landing
+      alias: lnd_ecom__payments_current
+    columns:
+      - name: source_record_id
+        description: Source payment key; unique after deterministic CDC deduplication.
+        data_tests: [not_null, unique]
+      - name: landing_current_rank
+        description: Rank from the deterministic ordering; retained as proof that selected rows are the winners.
+
+  - name: lnd_ecom__products_current
+    description: Current trusted product source record selected from CDC events. The grain is one current source product key.
+    config:
+      schema: landing
+      alias: lnd_ecom__products_current
+    columns:
+      - name: source_record_id
+        description: Source product key; unique after deterministic CDC deduplication.
+        data_tests: [not_null, unique]
+      - name: landing_current_rank
+        description: Rank from the deterministic ordering; retained as proof that selected rows are the winners.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [1]
+      - name: landing_deduplication_order
+        description: Human-readable ordering strategy that explains why the selected row wins.
+
+  - name: lnd_ecom__order_lines_current
+    description: Current trusted order-line source record selected from CDC events. The grain is one current source order-line key.
+    config:
+      schema: landing
+      alias: lnd_ecom__order_lines_current
+    columns:
+      - name: source_record_id
+        description: Source order-line key; unique after deterministic CDC deduplication.
+        data_tests: [not_null, unique]
+      - name: landing_current_rank
+        description: Rank from the deterministic ordering; retained as proof that selected rows are the winners.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [1]
+      - name: landing_deduplication_order
+        description: Human-readable ordering strategy that explains why the selected row wins.
+
+  - name: stg_ecom__customers
+    description: Cleaned customer source object with renamed fields and preserved source metadata. The grain is one current ecom customer.
+    config:
+      schema: staging
+      alias: stg_ecom__customers
+    columns:
+      - name: customer_id
+        description: Stable customer identifier from ecom.
+        data_tests: [not_null, unique]
+      - name: customer_name
+        description: Trimmed customer display name.
+      - name: source_ingested_at
+        description: Ingestion timestamp carried from the source JSON event.
+
+  - name: stg_ecom__orders
+    description: Cleaned order source object with typed timestamps and currency fields. The grain is one current ecom order.
+    config:
+      schema: staging
+      alias: stg_ecom__orders
+    data_tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "subtotal_cents + tax_paid_cents = order_total_cents"
+    columns:
+      - name: order_id
+        description: Stable order identifier from ecom.
+        data_tests: [not_null, unique]
+      - name: customer_id
+        description: Source customer key on the order.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_ecom__customers')
+                field: customer_id
+      - name: order_total_cents
+        description: Order total in integer cents.
+
+  - name: stg_ecom__payments
+    description: Cleaned payment source object with standardised method/status values and typed amounts. The grain is one current ecom payment.
+    config:
+      schema: staging
+      alias: stg_ecom__payments
+    columns:
+      - name: payment_id
+        description: Stable payment identifier from ecom.
+        data_tests: [not_null, unique]
+      - name: order_id
+        description: Source order key paid by this payment.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_ecom__orders')
+                field: order_id
+      - name: source_payment_status
+        description: Standardised source payment status.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['captured', 'pending']
+
+  - name: stg_ecom__products
+    description: Cleaned product source object with renamed fields, typed prices, standardised type values, and preserved source metadata. The grain is one current ecom product.
+    config:
+      schema: staging
+      alias: stg_ecom__products
+    columns:
+      - name: product_id
+        description: Stable product/SKU identifier from ecom.
+        data_tests: [not_null, unique]
+      - name: product_type
+        description: Standardised source product type.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['jaffle', 'beverage']
+      - name: product_price_cents
+        description: Source product price in integer cents.
+        data_tests: [not_null]
+
+  - name: stg_ecom__order_lines
+    description: Cleaned order-line source object with typed identifiers, quantity, and preserved source metadata. The grain is one current ecom order line.
+    config:
+      schema: staging
+      alias: stg_ecom__order_lines
+    data_tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "quantity > 0"
+    columns:
+      - name: order_line_id
+        description: Stable order-line identifier from ecom.
+        data_tests: [not_null, unique]
+      - name: order_id
+        description: Source order key for the line.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_ecom__orders')
+                field: order_id
+      - name: product_id
+        description: Source product/SKU key purchased on the line.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_ecom__products')
+                field: product_id
+
+  - name: sys_ecom__customers
+    description: Controlled access view over current ecom customer staging data. The grain is one current ecom customer.
+    config:
+      schema: systems
+      alias: sys_ecom__customers
+      materialized: view
+    columns:
+      - name: customer_id
+        description: Source customer key projected directly from staging.
+        data_tests: [not_null, unique]
+
+  - name: sys_ecom__orders
+    description: Controlled access view over current ecom order staging data. The grain is one current ecom order.
+    config:
+      schema: systems
+      alias: sys_ecom__orders
+      materialized: view
+    columns:
+      - name: order_id
+        description: Source order key projected directly from staging.
+        data_tests: [not_null, unique]
+
+  - name: sys_ecom__payments
+    description: Controlled access view over current ecom payment staging data. The grain is one current ecom payment.
+    config:
+      schema: systems
+      alias: sys_ecom__payments
+      materialized: view
+    columns:
+      - name: payment_id
+        description: Source payment key projected directly from staging.
+        data_tests: [not_null, unique]
+
+  - name: sys_ecom__products
+    description: Controlled access view over current ecom product staging data. The grain is one current ecom product.
+    config:
+      schema: systems
+      alias: sys_ecom__products
+      materialized: view
+    columns:
+      - name: product_id
+        description: Source product key projected directly from staging.
+        data_tests: [not_null, unique]
+
+  - name: sys_ecom__order_lines
+    description: Controlled access view over current ecom order-line staging data. The grain is one current ecom order line.
+    config:
+      schema: systems
+      alias: sys_ecom__order_lines
+      materialized: view
+    columns:
+      - name: order_line_id
+        description: Source order-line key projected directly from staging.
+        data_tests: [not_null, unique]
+
+  - name: int_commerce__order_payment_position
+    description: Reusable order/payment position that joins current order and payment records, separates attempted payments from captured settled value, and derives statuses from captured payments only. The grain is one order.
+    config:
+      schema: logical
+      alias: int_commerce__order_payment_position
+    columns:
+      - name: order_id
+        description: Order key.
+        data_tests: [not_null, unique]
+      - name: payment_operational_status
+        description: Derived payment state based only on captured payment value.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['not_required', 'unpaid', 'partially_paid', 'paid', 'overpaid']
+      - name: order_commercial_status
+        description: Reusable business interpretation of captured payment completeness.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['completed', 'open', 'exception', 'unknown', 'no_charge']
+      - name: captured_paid_amount_cents
+        description: Settled captured payment amount in cents; pending payments are excluded.
+      - name: captured_paid_amount
+        description: Settled captured payment amount; pending payments are excluded.
+      - name: total_payment_attempt_count
+        description: Count of all payment attempts regardless of payment status.
+      - name: pending_payment_count
+        description: Count of pending payment attempts.
+      - name: captured_payment_completeness
+        description: Ratio of captured payment cents to order total cents.
+
+  - name: int_commerce__customer_order_sequence
+    description: Reusable customer order sequencing, first-order logic, and repeat-order logic. The grain is one order.
+    config:
+      schema: logical
+      alias: int_commerce__customer_order_sequence
+    columns:
+      - name: order_id
+        description: Order key.
+        data_tests: [not_null, unique]
+      - name: customer_order_number
+        description: Deterministic order sequence for the customer.
+        data_tests: [not_null]
+
+  - name: int_commerce__order_line_amounts
+    description: Reusable order-line commercial calculation that joins staged order lines to staged products for at-purchase product snapshots and line amounts. The grain is one order line.
+    config:
+      schema: logical
+      alias: int_commerce__order_line_amounts
+    columns:
+      - name: order_line_id
+        description: Source order-line key.
+        data_tests: [not_null, unique]
+      - name: order_id
+        description: Source order key for the line.
+        data_tests: [not_null]
+      - name: product_id
+        description: Source product/SKU key for the purchased item.
+        data_tests: [not_null]
+      - name: unit_price_cents
+        description: Product price snapshot in cents at the time of transformation.
+        data_tests: [not_null]
+      - name: line_amount_cents
+        description: Quantity multiplied by unit price in cents.
+        data_tests: [not_null]
+
+  - name: obj_order
+    description: Canonical durable order event. It carries obj_customer.customer_sk as the canonical Customer relationship key while retaining customer_id as the source/natural identifier. The grain is one order.
+    config:
+      schema: objects
+      alias: obj_order
+      meta:
+        grain: one order
+        model_class: canonical object/event header
+        status: reusable
+        intended_consumers: [canonical_objects, mart_facts, semantic_definitions]
+    columns:
+      - name: order_sk
+        description: Surrogate key generated from order_id.
+        data_tests: [not_null, unique]
+      - name: order_id
+        description: Natural order key.
+        data_tests: [not_null, unique]
+      - name: customer_sk
+        description: Canonical Customer relationship key selected from obj_customer; downstream models must not regenerate it.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('obj_customer')
+                field: customer_sk
+      - name: customer_id
+        description: Source/natural customer identifier on the order, retained for traceability.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('obj_customer')
+                field: customer_id
+
+  - name: obj_product
+    description: Canonical durable Product entity and the stable product identity/relationship interface for commerce modelling. The grain is one product.
+    config:
+      schema: objects
+      alias: obj_product
+      meta:
+        grain: one product
+        model_class: canonical object/entity
+        status: reusable
+        intended_consumers: [canonical_objects, mart_facts, semantic_definitions]
+    columns:
+      - name: product_sk
+        description: Surrogate key generated from product_id only in the canonical Product object.
+        data_tests: [not_null, unique]
+      - name: product_id
+        description: Natural product/SKU key.
+        data_tests: [not_null, unique]
+
+  - name: obj_order_line
+    description: Canonical durable order-line event. It carries canonical order_sk from obj_order and product_sk from obj_product while retaining source identifiers for traceability. The grain is one order line.
+    config:
+      schema: objects
+      alias: obj_order_line
+      meta:
+        grain: one order line
+        model_class: canonical object/event/relationship
+        status: reusable
+        intended_consumers: [mart_facts, semantic_definitions]
+    columns:
+      - name: order_line_sk
+        description: Surrogate key generated from order_line_id in the canonical Order Line object.
+        data_tests: [not_null, unique]
+      - name: order_line_id
+        description: Natural order-line key.
+        data_tests: [not_null, unique]
+      - name: order_sk
+        description: Canonical Order relationship key selected from obj_order.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('obj_order')
+                field: order_sk
+      - name: product_sk
+        description: Canonical Product relationship key selected from obj_product.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('obj_product')
+                field: product_sk
+      - name: quantity
+        description: Purchased quantity on the order line. Jaffle raw item rows represent one unit each.
+        data_tests: [not_null]
+      - name: line_amount_cents
+        description: At-purchase line amount in cents.
+        data_tests: [not_null]
+
+  - name: obj_payment
+    description: Canonical durable payment event and the stable payment interface for order settlement, reconciliation, and downstream analysis. The grain is one payment.
+    config:
+      schema: objects
+      alias: obj_payment
+      meta:
+        grain: one payment
+        model_class: canonical payment event
+        status: reusable
+        intended_consumers: [canonical_objects, mart_facts, operations_controls]
+    columns:
+      - name: payment_sk
+        description: Surrogate key generated from payment_id.
+        data_tests: [not_null, unique]
+      - name: payment_id
+        description: Natural payment key.
+        data_tests: [not_null, unique]
+      - name: order_id
+        description: Order paid by this payment.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('obj_order')
+                field: order_id
+
+  - name: rpt_customer_commercial_summary
+    description: Purpose-specific customer commercial summary report, not a dimension. The grain is one customer.
+    config:
+      schema: marts
+      alias: rpt_customer_commercial_summary
+      meta:
+        grain: one customer commercial summary
+        model_class: analytical report
+        status: purpose-specific
+        intended_consumers: [business_reporting, operations_pumps]
+    columns:
+      - name: customer_sk
+        description: Customer surrogate key from obj_customer.
+        data_tests: [not_null, unique]
+      - name: customer_id
+        description: Natural customer key.
+        data_tests: [not_null, unique]
+      - name: completed_revenue
+        description: Revenue from completed orders only.
+
+  - name: ops_order_count_reconciliation
+    description: Reconciliation view proving order counts remain stable from staging to object to mart fact. The grain is one reconciliation result.
+    config:
+      schema: operations
+      alias: ops_order_count_reconciliation
+    columns:
+      - name: reconciles
+        description: True when staging, object, and fact order counts match.
+
+unit_tests:
+  - name: test_customer_landing_latest_source_update_wins
+    description: Proves landing chooses the row with the newest source_updated_at before considering ingestion/event tie breakers.
+    model: lnd_ecom__customers_current
+    given:
+      - input: ref('ext_ecom__customers')
+        rows:
+          - {ingestion_event_id: 'cust-1:001', source_record_id: 'cust-1', operation_type: 'I', ingested_at: '2024-09-01 00:01:00', source_updated_at: '2024-09-01 00:01:00', record_payload: '{"customer_id":"cust-1","customer_name":"Old Name"}', extracted_customer_id: 'cust-1', extracted_customer_name: 'Old Name'}
+          - {ingestion_event_id: 'cust-1:002', source_record_id: 'cust-1', operation_type: 'U', ingested_at: '2024-09-01 00:02:00', source_updated_at: '2024-09-01 00:03:00', record_payload: '{"customer_id":"cust-1","customer_name":"New Name"}', extracted_customer_id: 'cust-1', extracted_customer_name: 'New Name'}
+    expect:
+      rows:
+        - {ingestion_event_id: 'cust-1:002', source_record_id: 'cust-1', operation_type: 'U', extracted_customer_id: 'cust-1', extracted_customer_name: 'New Name', landing_current_rank: 1, landing_deduplication_order: 'source_updated_at desc, ingested_at desc, ingestion_event_id desc'}
+
+  - name: test_order_payment_position_status_mapping
+    description: Proves exact payment coverage maps to paid operational status and completed commercial status.
+    model: int_commerce__order_payment_position
+    given:
+      - input: ref('stg_ecom__orders')
+        rows:
+          - {order_id: 'order-1', customer_id: 'customer-1', store_id: 'store-1', ordered_at: '2024-09-01 10:00:00', subtotal_cents: 900, tax_paid_cents: 100, order_total_cents: 1000, subtotal: 9.00, tax_paid: 1.00, order_total: 10.00}
+      - input: ref('stg_ecom__payments')
+        rows:
+          - {payment_id: 'payment-1', order_id: 'order-1', payment_method: 'card', source_payment_status: 'captured', paid_at: '2024-09-01 10:01:00', payment_amount_cents: 1000, payment_amount: 10.00}
+    expect:
+      rows:
+        - {order_id: 'order-1', customer_id: 'customer-1', ordered_at: '2024-09-01 10:00:00', order_total_cents: 1000, order_total: 10.00, total_payment_attempt_count: 1, pending_payment_count: 0, total_attempted_amount_cents: 1000, total_attempted_amount: 10.00, captured_paid_amount_cents: 1000, captured_paid_amount: 10.00, captured_payment_completeness: 1.0, latest_payment_at: '2024-09-01 10:01:00', latest_captured_payment_at: '2024-09-01 10:01:00', has_captured_payment: true, payment_operational_status: 'paid', order_commercial_status: 'completed', is_completed_order: true, is_overpaid: false, requires_reconciliation: false}
+
+  - name: test_pending_payment_does_not_complete_order
+    description: Proves a pending non-zero payment attempt does not create captured revenue or a completed order.
+    model: int_commerce__order_payment_position
+    given:
+      - input: ref('stg_ecom__orders')
+        rows:
+          - {order_id: 'order-2', customer_id: 'customer-1', store_id: 'store-1', ordered_at: '2024-09-01 11:00:00', subtotal_cents: 900, tax_paid_cents: 100, order_total_cents: 1000, subtotal: 9.00, tax_paid: 1.00, order_total: 10.00}
+      - input: ref('stg_ecom__payments')
+        rows:
+          - {payment_id: 'payment-2', order_id: 'order-2', payment_method: 'card', source_payment_status: 'pending', paid_at: '2024-09-01 11:01:00', payment_amount_cents: 1000, payment_amount: 10.00}
+    expect:
+      rows:
+        - {order_id: 'order-2', customer_id: 'customer-1', ordered_at: '2024-09-01 11:00:00', order_total_cents: 1000, order_total: 10.00, total_payment_attempt_count: 1, pending_payment_count: 1, total_attempted_amount_cents: 1000, total_attempted_amount: 10.00, captured_paid_amount_cents: 0, captured_paid_amount: 0.00, captured_payment_completeness: 0.0, latest_payment_at: '2024-09-01 11:01:00', latest_captured_payment_at: null, has_captured_payment: false, payment_operational_status: 'unpaid', order_commercial_status: 'open', is_completed_order: false, is_overpaid: false, requires_reconciliation: false}
+
+  - name: test_zero_value_order_is_not_completed_revenue
+    description: Proves a zero-value order is explicitly no-charge rather than a completed revenue event.
+    model: int_commerce__order_payment_position
+    given:
+      - input: ref('stg_ecom__orders')
+        rows:
+          - {order_id: 'order-3', customer_id: 'customer-1', store_id: 'store-1', ordered_at: '2024-09-01 12:00:00', subtotal_cents: 0, tax_paid_cents: 0, order_total_cents: 0, subtotal: 0.00, tax_paid: 0.00, order_total: 0.00}
+      - input: ref('stg_ecom__payments')
+        rows: []
+    expect:
+      rows:
+        - {order_id: 'order-3', customer_id: 'customer-1', ordered_at: '2024-09-01 12:00:00', order_total_cents: 0, order_total: 0.00, total_payment_attempt_count: 0, pending_payment_count: 0, total_attempted_amount_cents: 0, total_attempted_amount: 0.00, captured_paid_amount_cents: 0, captured_paid_amount: 0.00, captured_payment_completeness: null, latest_payment_at: null, latest_captured_payment_at: null, has_captured_payment: false, payment_operational_status: 'not_required', order_commercial_status: 'no_charge', is_completed_order: false, is_overpaid: false, requires_reconciliation: false}
