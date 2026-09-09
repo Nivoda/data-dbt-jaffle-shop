@@ -340,11 +340,11 @@ models:
         description: Source order-line key projected directly from staging.
         data_tests: [not_null, unique]
 
-  - name: int_commerce__order_payment_position
-    description: Reusable order/payment position that joins current order and payment records, separates attempted payments from captured settled value, and derives statuses from captured payments only. The grain is one order.
+  - name: int_order_payment_position
+    description: Reusable order/payment position that joins core order and payment records, separates attempted payments from captured settled value, and derives statuses from captured payments only. The grain is one order.
     config:
       schema: logical
-      alias: int_commerce__order_payment_position
+      alias: order_payment_position
     columns:
       - name: order_id
         description: Order key.
@@ -372,11 +372,11 @@ models:
       - name: captured_payment_completeness
         description: Ratio of captured payment cents to order total cents.
 
-  - name: int_commerce__customer_order_sequence
-    description: Reusable customer order sequencing, first-order logic, and repeat-order logic. The grain is one order.
+  - name: int_customer_order_sequence
+    description: Reusable customer order sequencing, first-order logic, and repeat-order logic, sourced from core.order. The grain is one order.
     config:
       schema: logical
-      alias: int_commerce__customer_order_sequence
+      alias: customer_order_sequence
     columns:
       - name: order_id
         description: Order key.
@@ -385,11 +385,11 @@ models:
         description: Deterministic order sequence for the customer.
         data_tests: [not_null]
 
-  - name: int_commerce__order_line_amounts
-    description: Reusable order-line commercial calculation that joins staged order lines to staged products for at-purchase product snapshots and line amounts. The grain is one order line.
+  - name: int_order_line_amounts
+    description: Reusable order-line commercial calculation that joins core order lines to core products for current product name/price context and line amounts. The grain is one order line.
     config:
       schema: logical
-      alias: int_commerce__order_line_amounts
+      alias: order_line_amounts
     columns:
       - name: order_line_id
         description: Source order-line key.
@@ -401,22 +401,22 @@ models:
         description: Source product/SKU key for the purchased item.
         data_tests: [not_null]
       - name: unit_price_cents
-        description: Product price snapshot in cents at the time of transformation.
+        description: Current product price in cents joined onto the line at transformation time (not an at-purchase snapshot; the source data has no purchase-time price history).
         data_tests: [not_null]
       - name: line_amount_cents
         description: Quantity multiplied by unit price in cents.
         data_tests: [not_null]
 
-  - name: obj_order
-    description: Canonical durable order event. It carries obj_customer.customer_sk as the canonical Customer relationship key while retaining customer_id as the source/natural identifier. The grain is one order.
+  - name: order
+    description: Canonical durable order event. It carries customer.customer_sk as the canonical Customer relationship key while retaining customer_id as the source/natural identifier. The grain is one order.
     config:
-      schema: objects
-      alias: obj_order
+      schema: core
+      alias: order
       meta:
         grain: one order
-        model_class: canonical object/event header
-        status: reusable
-        intended_consumers: [canonical_objects, mart_facts, semantic_definitions]
+        model_class: canonical entity/event header
+        maturity: certified
+        intended_consumers: [core, mart_facts, semantic_definitions]
     columns:
       - name: order_sk
         description: Surrogate key generated from order_id.
@@ -425,30 +425,30 @@ models:
         description: Natural order key.
         data_tests: [not_null, unique]
       - name: customer_sk
-        description: Canonical Customer relationship key selected from obj_customer; downstream models must not regenerate it.
+        description: Canonical Customer relationship key selected from core.customer; downstream models must not regenerate it.
         data_tests:
           - relationships:
               arguments:
-                to: ref('obj_customer')
+                to: ref('customer')
                 field: customer_sk
       - name: customer_id
         description: Source/natural customer identifier on the order, retained for traceability.
         data_tests:
           - relationships:
               arguments:
-                to: ref('obj_customer')
+                to: ref('customer')
                 field: customer_id
 
-  - name: obj_product
+  - name: product
     description: Canonical durable Product entity and the stable product identity/relationship interface for commerce modelling. The grain is one product.
     config:
-      schema: objects
-      alias: obj_product
+      schema: core
+      alias: product
       meta:
         grain: one product
-        model_class: canonical object/entity
-        status: reusable
-        intended_consumers: [canonical_objects, mart_facts, semantic_definitions]
+        model_class: canonical entity
+        maturity: certified
+        intended_consumers: [core, mart_facts, semantic_definitions]
     columns:
       - name: product_sk
         description: Surrogate key generated from product_id only in the canonical Product object.
@@ -457,16 +457,16 @@ models:
         description: Natural product/SKU key.
         data_tests: [not_null, unique]
 
-  - name: obj_order_line
-    description: Canonical durable order-line event. It carries canonical order_sk from obj_order and product_sk from obj_product while retaining source identifiers for traceability. The grain is one order line.
+  - name: order_line
+    description: Canonical source order-line record, built directly from staging. It carries canonical order_sk from core.order and product_sk from core.product while retaining source identifiers for traceability. Commercial interpretation (extended amounts, current product context) is derived downstream in logical.order_line_amounts. The grain is one order line.
     config:
-      schema: objects
-      alias: obj_order_line
+      schema: core
+      alias: order_line
       meta:
         grain: one order line
-        model_class: canonical object/event/relationship
-        status: reusable
-        intended_consumers: [mart_facts, semantic_definitions]
+        model_class: canonical entity/event/relationship
+        maturity: certified
+        intended_consumers: [logical, mart_facts, semantic_definitions]
     columns:
       - name: order_line_sk
         description: Surrogate key generated from order_line_id in the canonical Order Line object.
@@ -475,38 +475,35 @@ models:
         description: Natural order-line key.
         data_tests: [not_null, unique]
       - name: order_sk
-        description: Canonical Order relationship key selected from obj_order.
+        description: Canonical Order relationship key selected from core.order.
         data_tests:
           - not_null
           - relationships:
               arguments:
-                to: ref('obj_order')
+                to: ref('order')
                 field: order_sk
       - name: product_sk
-        description: Canonical Product relationship key selected from obj_product.
+        description: Canonical Product relationship key selected from core.product.
         data_tests:
           - not_null
           - relationships:
               arguments:
-                to: ref('obj_product')
+                to: ref('product')
                 field: product_sk
       - name: quantity
         description: Purchased quantity on the order line. Jaffle raw item rows represent one unit each.
         data_tests: [not_null]
-      - name: line_amount_cents
-        description: At-purchase line amount in cents.
-        data_tests: [not_null]
 
-  - name: obj_payment
+  - name: payment
     description: Canonical durable payment event and the stable payment interface for order settlement, reconciliation, and downstream analysis. The grain is one payment.
     config:
-      schema: objects
-      alias: obj_payment
+      schema: core
+      alias: payment
       meta:
         grain: one payment
         model_class: canonical payment event
-        status: reusable
-        intended_consumers: [canonical_objects, mart_facts, operations_controls]
+        maturity: certified
+        intended_consumers: [core, mart_facts, cross_cutting_quality_controls]
     columns:
       - name: payment_sk
         description: Surrogate key generated from payment_id.
@@ -519,17 +516,8 @@ models:
         data_tests:
           - relationships:
               arguments:
-                to: ref('obj_order')
+                to: ref('order')
                 field: order_id
-
-  - name: ops_order_count_reconciliation
-    description: Reconciliation view proving order counts remain stable from staging to object to mart fact. The grain is one reconciliation result.
-    config:
-      schema: operations
-      alias: ops_order_count_reconciliation
-    columns:
-      - name: reconciles
-        description: True when staging, object, and fact order counts match.
 
 unit_tests:
   - name: test_customer_landing_latest_source_update_wins
@@ -546,12 +534,12 @@ unit_tests:
 
   - name: test_order_payment_position_status_mapping
     description: Proves exact payment coverage maps to paid operational status and completed commercial status.
-    model: int_commerce__order_payment_position
+    model: int_order_payment_position
     given:
-      - input: ref('stg_ecom__orders')
+      - input: ref('order')
         rows:
-          - {order_id: 'order-1', customer_id: 'customer-1', store_id: 'store-1', ordered_at: '2024-09-01 10:00:00', subtotal_cents: 900, tax_paid_cents: 100, order_total_cents: 1000, subtotal: 9.00, tax_paid: 1.00, order_total: 10.00}
-      - input: ref('stg_ecom__payments')
+          - {order_id: 'order-1', customer_id: 'customer-1', store_id: 'store-1', ordered_at: '2024-09-01 10:00:00', order_total_cents: 1000, order_total: 10.00}
+      - input: ref('payment')
         rows:
           - {payment_id: 'payment-1', order_id: 'order-1', payment_method: 'card', source_payment_status: 'captured', paid_at: '2024-09-01 10:01:00', payment_amount_cents: 1000, payment_amount: 10.00}
     expect:
@@ -560,12 +548,12 @@ unit_tests:
 
   - name: test_pending_payment_does_not_complete_order
     description: Proves a pending non-zero payment attempt does not create captured revenue or a completed order.
-    model: int_commerce__order_payment_position
+    model: int_order_payment_position
     given:
-      - input: ref('stg_ecom__orders')
+      - input: ref('order')
         rows:
-          - {order_id: 'order-2', customer_id: 'customer-1', store_id: 'store-1', ordered_at: '2024-09-01 11:00:00', subtotal_cents: 900, tax_paid_cents: 100, order_total_cents: 1000, subtotal: 9.00, tax_paid: 1.00, order_total: 10.00}
-      - input: ref('stg_ecom__payments')
+          - {order_id: 'order-2', customer_id: 'customer-1', store_id: 'store-1', ordered_at: '2024-09-01 11:00:00', order_total_cents: 1000, order_total: 10.00}
+      - input: ref('payment')
         rows:
           - {payment_id: 'payment-2', order_id: 'order-2', payment_method: 'card', source_payment_status: 'pending', paid_at: '2024-09-01 11:01:00', payment_amount_cents: 1000, payment_amount: 10.00}
     expect:
@@ -574,12 +562,12 @@ unit_tests:
 
   - name: test_zero_value_order_is_not_completed_revenue
     description: Proves a zero-value order is explicitly no-charge rather than a completed revenue event.
-    model: int_commerce__order_payment_position
+    model: int_order_payment_position
     given:
-      - input: ref('stg_ecom__orders')
+      - input: ref('order')
         rows:
-          - {order_id: 'order-3', customer_id: 'customer-1', store_id: 'store-1', ordered_at: '2024-09-01 12:00:00', subtotal_cents: 0, tax_paid_cents: 0, order_total_cents: 0, subtotal: 0.00, tax_paid: 0.00, order_total: 0.00}
-      - input: ref('stg_ecom__payments')
+          - {order_id: 'order-3', customer_id: 'customer-1', store_id: 'store-1', ordered_at: '2024-09-01 12:00:00', order_total_cents: 0, order_total: 0.00}
+      - input: ref('payment')
         rows: []
     expect:
       rows:

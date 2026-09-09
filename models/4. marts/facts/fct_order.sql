@@ -1,25 +1,25 @@
 {{ config(alias='fct_order') }}
 
 with orders as (
-    select * from {{ ref('obj_order') }}
+    select * from {{ ref('order') }}
 ),
 
 order_payment_position as (
-    select * from {{ ref('int_commerce__order_payment_position') }}
+    select * from {{ ref('int_order_payment_position') }}
 ),
 
 customer_order_sequence as (
-    select * from {{ ref('int_commerce__customer_order_sequence') }}
+    select * from {{ ref('int_customer_order_sequence') }}
 ),
 
 order_line_summary as (
     select
-        order_sk,
+        order_id,
         count(*) as order_line_count,
         sum(quantity) as item_quantity,
         sum(line_amount_cents) as merchandise_subtotal_cents,
         sum(line_amount) as merchandise_subtotal
-    from {{ ref('obj_order_line') }}
+    from {{ ref('int_order_line_amounts') }}
     group by 1
 )
 
@@ -61,4 +61,4 @@ select
 from orders
 inner join order_payment_position on orders.order_id = order_payment_position.order_id
 inner join customer_order_sequence on orders.order_id = customer_order_sequence.order_id
-left join order_line_summary on orders.order_sk = order_line_summary.order_sk
+left join order_line_summary on orders.order_id = order_line_summary.order_id

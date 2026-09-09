@@ -352,14 +352,14 @@ models:
         description: Source order address snapshot key projected directly from staging.
         data_tests: [not_null, unique]
 
-  - name: int_commerce__customer_contact_profile
-    description: Reusable current customer contact/address relationship selection logic. It selects source relationship pointers from staging; canonical object models resolve the entity details. The grain is one customer.
+  - name: int_customer_contact_profile
+    description: Reusable derived customer contact/address view. It reads core.customer_user and core.customer_address (source-native canonical relationship records) and resolves current contact details by joining core.user and core.address. The grain is one customer.
     config:
       schema: logical
-      alias: int_commerce__customer_contact_profile
+      alias: customer_contact_profile
     columns:
       - name: customer_id
-        description: Source customer key for the selected current contact/address relationship pointers.
+        description: Source customer key for the selected current contact/address relationship.
         data_tests: [not_null, unique]
       - name: primary_customer_user_relationship_id
         description: Selected source customer-user relationship key.
@@ -369,7 +369,7 @@ models:
         data_tests:
           - relationships:
               arguments:
-                to: ref('stg_ecom__users')
+                to: ref('user')
                 field: user_id
       - name: default_customer_address_relationship_id
         description: Selected source customer-address relationship key.
@@ -379,19 +379,19 @@ models:
         data_tests:
           - relationships:
               arguments:
-                to: ref('stg_ecom__addresses')
+                to: ref('address')
                 field: address_id
 
-  - name: obj_user
+  - name: user
     description: Canonical durable User entity. The grain is one user.
     config:
-      schema: objects
-      alias: obj_user
+      schema: core
+      alias: user
       meta:
         grain: one user
-        model_class: canonical object/entity
-        status: reusable
-        intended_consumers: [canonical_objects, mart_dimensions]
+        model_class: canonical entity
+        maturity: certified
+        intended_consumers: [core, mart_dimensions]
     columns:
       - name: user_sk
         description: Surrogate key generated from user_id only in the canonical User object.
@@ -403,16 +403,16 @@ models:
         description: Canonical user email address.
         data_tests: [not_null, unique]
 
-  - name: obj_customer_user
-    description: Canonical Customer-User relationship object. The grain is one customer-user relationship.
+  - name: customer_user
+    description: Canonical, source-native Customer-User relationship object. It carries its own source relationship id and validity window, which is why it stays in Core rather than being modelled as a derived Logical view. The grain is one customer-user relationship.
     config:
-      schema: objects
-      alias: obj_customer_user
+      schema: core
+      alias: customer_user
       meta:
         grain: one customer-user relationship
-        model_class: canonical object/relationship
-        status: reusable
-        intended_consumers: [canonical_objects, mart_dimensions]
+        model_class: canonical relationship
+        maturity: certified
+        intended_consumers: [core, mart_dimensions, logical]
     columns:
       - name: customer_user_sk
         description: Surrogate key for the canonical relationship.
@@ -421,32 +421,32 @@ models:
         description: Natural relationship key.
         data_tests: [not_null, unique]
       - name: customer_sk
-        description: Canonical Customer relationship key selected from obj_customer.
+        description: Canonical Customer relationship key selected from core.customer.
         data_tests:
           - not_null
           - relationships:
               arguments:
-                to: ref('obj_customer')
+                to: ref('customer')
                 field: customer_sk
       - name: user_sk
-        description: Canonical User relationship key selected from obj_user.
+        description: Canonical User relationship key selected from core.user.
         data_tests:
           - not_null
           - relationships:
               arguments:
-                to: ref('obj_user')
+                to: ref('user')
                 field: user_sk
 
-  - name: obj_address
+  - name: address
     description: Canonical durable Address entity. The grain is one address.
     config:
-      schema: objects
-      alias: obj_address
+      schema: core
+      alias: address
       meta:
         grain: one address
-        model_class: canonical object/entity
-        status: reusable
-        intended_consumers: [canonical_objects, mart_dimensions]
+        model_class: canonical entity
+        maturity: certified
+        intended_consumers: [core, mart_dimensions]
     columns:
       - name: address_sk
         description: Surrogate key generated from address_id only in the canonical Address object.
@@ -455,16 +455,16 @@ models:
         description: Natural address key.
         data_tests: [not_null, unique]
 
-  - name: obj_customer_address
-    description: Canonical Customer-Address relationship object. The grain is one customer-address relationship.
+  - name: customer_address
+    description: Canonical, source-native Customer-Address relationship object. It carries its own source relationship id and validity window, which is why it stays in Core rather than being modelled as a derived Logical view; a hypothetical logical.customer_addresses would instead be the derived/enriched business view, which int_customer_contact_profile already provides. The grain is one customer-address relationship.
     config:
-      schema: objects
-      alias: obj_customer_address
+      schema: core
+      alias: customer_address
       meta:
         grain: one customer-address relationship
-        model_class: canonical object/relationship
-        status: reusable
-        intended_consumers: [canonical_objects, mart_dimensions]
+        model_class: canonical relationship
+        maturity: certified
+        intended_consumers: [core, mart_dimensions, logical]
     columns:
       - name: customer_address_sk
         description: Surrogate key for the canonical relationship.
@@ -473,32 +473,32 @@ models:
         description: Natural relationship key.
         data_tests: [not_null, unique]
       - name: customer_sk
-        description: Canonical Customer relationship key selected from obj_customer.
+        description: Canonical Customer relationship key selected from core.customer.
         data_tests:
           - not_null
           - relationships:
               arguments:
-                to: ref('obj_customer')
+                to: ref('customer')
                 field: customer_sk
       - name: address_sk
-        description: Canonical Address relationship key selected from obj_address.
+        description: Canonical Address relationship key selected from core.address.
         data_tests:
           - not_null
           - relationships:
               arguments:
-                to: ref('obj_address')
+                to: ref('address')
                 field: address_sk
 
-  - name: obj_order_address_snapshot
+  - name: order_address_snapshot
     description: Canonical immutable Order Address Snapshot. The grain is one order address snapshot captured at purchase time.
     config:
-      schema: objects
-      alias: obj_order_address_snapshot
+      schema: core
+      alias: order_address_snapshot
       meta:
         grain: one order address snapshot
-        model_class: canonical object/event snapshot
-        status: reusable
-        intended_consumers: [canonical_objects, mart_facts, operations_controls]
+        model_class: canonical event snapshot
+        maturity: certified
+        intended_consumers: [core, mart_facts, cross_cutting_quality_controls]
     columns:
       - name: order_address_snapshot_sk
         description: Surrogate key for the immutable order address snapshot.
@@ -507,97 +507,59 @@ models:
         description: Natural order address snapshot key.
         data_tests: [not_null, unique]
       - name: order_sk
-        description: Canonical Order relationship key selected from obj_order.
+        description: Canonical Order relationship key selected from core.order.
         data_tests:
           - not_null
           - unique
           - relationships:
               arguments:
-                to: ref('obj_order')
+                to: ref('order')
                 field: order_sk
       - name: customer_sk
-        description: Canonical Customer relationship key selected from obj_customer.
+        description: Canonical Customer relationship key selected from core.customer.
         data_tests:
           - relationships:
               arguments:
-                to: ref('obj_customer')
+                to: ref('customer')
                 field: customer_sk
 
-  - name: dim_customer
-    description: Current analytical Customer dimension with deliberately selected identity and contact attributes resolved through canonical Customer, User, Address, and relationship objects. The grain is one customer.
+  - name: customer_marketing_exclusion
+    description: >
+      Canonical, business-maintained record of a customer marketing-exclusion decision.
+      Sourced from the governed Manual Inputs pattern (seeds/inputs -> stg_inputs__customer_marketing_exclusions),
+      it is treated the same way as customer_user/customer_address: a source-native
+      relationship-shaped record with its own validity window, so it lives in Core.
+      See docs/architecture.md for the Manual Inputs pattern.
     config:
-      schema: marts
-      alias: dim_customer
+      schema: core
+      alias: customer_marketing_exclusion
       meta:
-        grain: one customer
-        model_class: analytical dimension
-        status: purpose-specific analytical shape
-        intended_consumers: [analytics, reports]
+        grain: one customer marketing-exclusion decision
+        model_class: canonical business-maintained input
+        maturity: certified
+        intended_consumers: [operational]
     columns:
-      - name: customer_sk
-        description: Canonical Customer relationship key selected from obj_customer; not regenerated in the mart.
+      - name: customer_id
+        description: Customer the exclusion decision applies to.
         data_tests:
-          - not_null
-          - unique
           - relationships:
               arguments:
-                to: ref('obj_customer')
-                field: customer_sk
-      - name: customer_id
-        description: Natural customer key retained for traceability.
-        data_tests: [not_null, unique]
-      - name: primary_email_address
-        description: Selected current primary user email address for analytical consumption.
+                to: ref('customer')
+                field: customer_id
+      - name: is_excluded
+        description: True when the customer is currently excluded from marketing.
         data_tests: [not_null]
-      - name: default_address_id
-        description: Selected current default customer address key for analytical consumption.
+      - name: exclusion_reason
+        description: Business reason for the exclusion or reinstatement decision.
         data_tests: [not_null]
-
-  - name: mart_commerce__customer_360
-    description: Bounded Customer 360 decision mart for customer identity, contactability, and commercial posture. It is the single purpose-specific customer consumption mart in this reference implementation. The grain is one current customer.
-    config:
-      schema: marts
-      alias: mart_commerce__customer_360
-      meta:
-        grain: one current customer
-        model_class: analytical decision mart
-        status: purpose-specific
-        intended_consumers: [customer_360_review, business_operations]
-    columns:
-      - name: customer_sk
-        description: Canonical Customer relationship key carried through dim_customer.
-        data_tests: [not_null, unique]
-      - name: customer_id
-        description: Natural customer key.
-        data_tests: [not_null, unique]
-      - name: customer_value_band
-        description: Bounded Customer 360 value classification.
-        data_tests:
-          - accepted_values:
-              arguments:
-                values: ['high_value', 'active_value', 'no_completed_revenue']
-      - name: first_ordered_at
-        description: First order timestamp aggregated directly from fct_order.
-      - name: last_ordered_at
-        description: Most recent order timestamp aggregated directly from fct_order.
-      - name: order_count
-        description: Customer order count aggregated directly from fct_order.
+      - name: valid_from
+        description: When this exclusion decision took effect.
         data_tests: [not_null]
-      - name: completed_order_count
-        description: Completed positive-value order count aggregated directly from fct_order.
+      - name: valid_to
+        description: When this exclusion decision was superseded, if it has been.
+      - name: updated_by
+        description: Auditable owner of the correction/override (email placeholder).
         data_tests: [not_null]
-      - name: gross_revenue
-        description: Gross order value aggregated directly from fct_order.
-        data_tests: [not_null]
-      - name: completed_revenue
-        description: Completed captured revenue aggregated directly from fct_order.
-        data_tests: [not_null]
-      - name: has_repeat_order
-        description: True when fct_order shows at least one repeat order for the customer.
-        data_tests: [not_null]
-      - name: is_email_contactable
-        description: True when dim_customer supplies a selected primary email address.
-        data_tests: [not_null]
-      - name: is_phone_contactable
-        description: True when dim_customer supplies a selected primary phone number.
+      - name: updated_at
+        description: When this record was last written, for auditability.
         data_tests: [not_null]

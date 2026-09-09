@@ -9,15 +9,16 @@ Start here:
 
 ## Architecture Shape
 
+Foundation is layered. Consumption is branched.
+
 ```text
-Source / JSON landing -> landing -> staging
-                                      |-> systems
-                                      `-> logical -> objects -> marts
-                                                           |-> operations / pumps
-                                                           `-> semantic
+Source / JSON landing -> landing -> staging -> {systems (terminal)
+                                                 core -> logical (optional) -> marts (optional facts+dimensions)}
+
+core, logical, and marts may each feed reporting, semantic, and operational directly.
 ```
 
-The active project intentionally has one unambiguous path through each layer. The original starter staging and mart models have been removed from active model paths so they do not compete with the reference architecture.
+The mandatory discipline is the trusted business foundation through Core (Staging -> Core). After Core, models take the shortest sensible trusted path to Reporting/Semantic/Operational -- Logical and Marts are used only where they add reuse or value, never as mandatory toll booths. The original starter staging and mart models have been removed from the active model estate.
 
 ## What This Demonstrates
 
@@ -25,16 +26,18 @@ The active project intentionally has one unambiguous path through each layer. Th
 - Deterministic landing currentness and deduplication.
 - Source-specific staging with casts, renames, and standardisation.
 - A no-logic systems access branch over staging.
-- Reusable logical transformations for sequencing, reconciliation, and derived states.
-- Canonical objects for Customer, User, Address, Product, Order, Order Line, Payment, and relationship/snapshot objects.
-- Marts with distinct dimensions, facts, reports, and bounded decision marts.
-- An enforced operational pump contract.
+- Reusable logical transformations for sequencing, reconciliation, and derived states, correctly built on top of Core (not Staging).
+- A canonical Core layer for Customer, User, Address, Product, Order, Order Line, Payment, and relationship/snapshot records, free of order-derived behavioural drift.
+- Marts containing only reusable facts and dimensions.
+- A Reporting layer for consumer-facing decision reports.
+- An enforced Operational delivery contract that reads Core/Marts directly (not through Reporting).
+- A governed Manual Inputs pattern (seed fixture standing in for a production governed input) feeding Core.
 - dbt Core 1.12+ model-attached semantic metadata and metrics.
-- Operations controls for reconciliation, landing uniqueness, payment overage, zero-value order policy, and freshness.
+- Cross-cutting quality controls (tests, freshness, contracts) rather than a dedicated "operations" layer.
 
 ## Source Fixtures
 
-The static source fixture set lives in `seeds/ecom/` and is loaded into the `raw` schema:
+The static source fixture set lives in `seeds/ecom/` and `seeds/inputs/`, loaded into the `raw` schema:
 
 - `raw_customers`
 - `raw_users`
@@ -45,6 +48,7 @@ The static source fixture set lives in `seeds/ecom/` and is loaded into the `raw
 - `raw_orders`
 - `raw_items`
 - `raw_products`
+- `raw_customer_marketing_exclusions` (Manual Inputs fixture -- see docs/architecture.md)
 
 These seed files are part of the reference implementation. Keep them in the repo unless the architecture is deliberately changed.
 
@@ -69,11 +73,12 @@ DuckDB takes a file lock on `target/data_dbt_architecture.duckdb`, so run dbt co
 - `models/0. landing/0. external/json/ecom`: source-faithful JSON/CDC external views.
 - `models/0. landing/1. raw/ecom`: current trusted landing records.
 - `models/1. staging/ecom`: source-specific staging views.
-- `models/2a. objects`: canonical business objects, events, relationships, and snapshots.
-- `models/2b. systems/commerce`: controlled staging access views with no transformation logic.
-- `models/3. logical/commerce`: reusable internal transformations.
+- `models/1. staging/inputs`: staging view over the Manual Inputs marketing-exclusions source.
+- `models/2a. core`: canonical business entities, events, relationships, and the manual marketing-exclusion input.
+- `models/2b. systems/ecom`: controlled staging access views with no transformation logic (terminal).
+- `models/3. logical`: reusable transformations built on top of Core.
 - `models/4. marts/dimensions`: analytical dimensions.
 - `models/4. marts/facts`: conformed analytical facts.
-- `models/4. marts/reports`: reports and bounded decision marts.
-- `models/5. semantic`: semantic support model and model-attached semantic YAML.
-- `models/6. operations`: reconciliation controls and pump delivery contracts.
+- `models/5a. reporting`: consumer-facing, terminal reports.
+- `models/5b. semantic`: semantic support model and model-attached semantic YAML.
+- `models/5c. operational`: frozen, enforced-contract delivery models.

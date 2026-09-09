@@ -70,6 +70,20 @@ seeds:
           postal_code: varchar
           country_code: varchar
           captured_at: timestamp
+    inputs:
+      # Governed manual/business-maintained inputs fixture. Gated behind the same
+      # var as the other seeds so a plain `dbt seed` (no vars) does not silently
+      # populate a "production-looking" governed input from a local fixture.
+      +enabled: "{{ var('load_source_data', false) }}"
+      raw_customer_marketing_exclusions:
+        +column_types:
+          customer_id: varchar
+          is_excluded: boolean
+          exclusion_reason: varchar
+          valid_from: timestamp
+          valid_to: timestamp
+          updated_by: varchar
+          updated_at: timestamp
 
 models:
   data_dbt_architecture:
@@ -80,14 +94,14 @@ models:
         +meta:
           grain: one source CDC event
           model_class: source-faithful external ingestion
-          status: private ingestion contract
+          maturity: private
           intended_consumers: [landing]
       "1. raw":
         +schema: landing
         +meta:
           grain: one current source key
           model_class: current landing record
-          status: private trusted source record
+          maturity: private
           intended_consumers: [staging]
     "1. staging":
       +materialized: view
@@ -95,58 +109,69 @@ models:
       +meta:
         grain: one current source object
         model_class: source-specific staging model
-        status: private source-conformed model
-        intended_consumers: [logical, objects, systems, operations_controls]
-    "2a. objects":
+        maturity: private
+        intended_consumers: [logical, core, systems, cross_cutting_quality_controls]
+    "2a. core":
       +materialized: table
-      +schema: objects
+      +schema: core
+      +meta:
+        grain: one canonical entity/event/relationship
+        model_class: canonical core interface
+        maturity: certified
+        intended_consumers: [core, logical, marts, reporting, semantic, operational]
     "2b. systems":
       +materialized: view
       +schema: systems
       +meta:
         grain: one current source-conformed staging object
         model_class: staging access view
-        status: controlled access branch
+        maturity: private
         intended_consumers: [controlled_source_access]
     "3. logical":
+      # Logical materializes as a view by default: reusable, but not ephemeral.
       +materialized: view
       +schema: logical
       +meta:
-        grain: one reusable intermediate result at declared model grain
+        grain: one reusable transformation result at declared model grain
         model_class: reusable logical transformation
-        status: internal reusable logic
-        intended_consumers: [objects, marts, operations_controls]
+        maturity: reusable
+        intended_consumers: [core, marts, reporting, semantic, operational]
     "4. marts":
       +materialized: table
       +schema: marts
+      +meta:
+        maturity: reusable
       dimensions:
         +schema: marts
       facts:
         +schema: marts
-      reports:
-        +schema: marts
-    "5. semantic":
+        +meta:
+          maturity: certified
+    "5a. reporting":
+      # Small/derived; view keeps it cheap and always current on top of table-materialized marts.
+      +materialized: view
+      +schema: reporting
+      +meta:
+        grain: one current customer
+        model_class: consumer-facing report
+        maturity: consumer_specific
+        intended_consumers: [customer_360_review, business_operations]
+    "5b. semantic":
       +enabled: true
       +meta:
         grain: semantic support object
         model_class: semantic support model
-        status: reusable
+        maturity: certified
         intended_consumers: [semantic_definitions]
-    "6. operations":
-      +schema: operations
-      +materialized: view
+    "5c. operational":
+      # Frozen machine-consumed contract: table materialization.
+      +materialized: table
+      +schema: operational
       +meta:
-        grain: one operations control result
-        model_class: operations control
-        status: reusable data quality control
-        intended_consumers: [data_quality, observability]
-      pumps:
-        +materialized: table
-        +meta:
-          grain: one pump delivery record
-          model_class: operations pump delivery contract
-          status: frozen machine-consumed contract
-          intended_consumers: [external_operational_consumers]
+        grain: one operational delivery record
+        model_class: operational delivery contract
+        maturity: certified
+        intended_consumers: [external_operational_consumers]
 
 flags:
   require_generic_test_arguments_property: true

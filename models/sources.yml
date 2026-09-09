@@ -53,3 +53,18 @@ sources:
         description: Items included in an order
       - name: raw_products
         description: One record per SKU for items sold in stores
+
+  - name: inputs
+    schema: raw
+    description: >
+      Governed manual/business-maintained inputs. In production this maps to a
+      RAW.INPUTS-style governed location (see docs/architecture.md); locally it is
+      loaded as a seed fixture that demonstrates the same contract.
+    tables:
+      - name: raw_customer_marketing_exclusions
+        description: One record per customer marketing-exclusion decision, corrections/overrides are auditable via valid_from/valid_to and updated_by/updated_at.
+        config:
+          loaded_at_field: updated_at
+          freshness:
+            warn_after: {count: 10000, period: day}
+            error_after: {count: 20000, period: day}
