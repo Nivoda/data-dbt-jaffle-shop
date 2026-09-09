@@ -507,7 +507,7 @@ models:
         description: Natural order address snapshot key.
         data_tests: [not_null, unique]
       - name: order_sk
-        description: Canonical Order relationship key selected from core.order.
+        description: Canonical Order relationship key selected from core.orders.
         data_tests:
           - not_null
           - unique

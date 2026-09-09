@@ -40,16 +40,24 @@ Operational must never depend on Reporting (Reporting is a terminal leaf; see be
 
 ## The Rule Of Two
 
-Shared logic is extracted upstream (into Logical, or into a shared Core interface) only when the
-**same material logic is genuinely duplicated by a second real use case** -- not preemptively, and
-not for logic that is materially trivial. Concretely in this repo: after the refactor, both
-`reporting.customer_360` and `operational.customer_marketing_eligibility` compute a small
-order-activity aggregation (first/last order date, order count, completed count, completed
-revenue, has-repeat-order) directly from `marts.fct_order`. This is judged too small (a five-line
-`group by`) to justify introducing a fifth Logical model purely to deduplicate it; both places stay
-simple and readable. If a *third* consumer needed the same aggregation, or if the logic grew more
-complex joins/business rules, that would cross the rule-of-two threshold and the aggregation should
-move into a shared Logical model.
+This is a judgement heuristic for when to extract shared logic upstream (into Logical, or into a
+shared Core interface), stated precisely so it isn't misread as "wait for a third consumer":
+
+- **One use case:** take the shortest sensible trusted path. Don't pre-abstract into Logical/Marts
+  on the speculation that something else might need it later.
+- **A second genuine consumer that repeats material joins or business rules** (not trivial
+  aggregation -- real logic: statuses, sequencing, multi-table joins, business rules that could
+  drift out of sync if duplicated) is the trigger to **review** whether that logic should be
+  promoted upstream. It is a prompt to look, not an automatic mandate to extract -- the review may
+  still conclude the duplication is fine.
+- **Trivial repeated aggregation may simply stay duplicated.** Concretely in this repo: both
+  `reporting.customer_360` and `operational.customer_marketing_eligibility` compute a small
+  order-activity aggregation (first/last order date, order count, completed count, completed
+  revenue, has-repeat-order) directly from `marts.fct_order`. This is a five-line `group by` with no
+  business-rule content to drift; extracting it into a fifth Logical model would add an indirection
+  hop for both consumers without removing any real risk or duplicated judgement, so it stays
+  duplicated. (This example remains valid after the order-line monetary semantics fix: both places
+  aggregate `captured_paid_amount`/`order_total`, not any current-catalogue-derived value.)
 
 ## Layer Purpose And Allowed Dependencies
 
@@ -126,7 +134,7 @@ flowchart LR
   corea["core.address"]
   coreca["core.customer_address"]
   coreoas["core.order_address_snapshot"]
-  coreo["core.order"]
+  coreo["core.orders"]
   corep["core.payment"]
   coreprod["core.product"]
   coreline["core.order_line"]
@@ -246,7 +254,7 @@ Note what does **not** appear: nothing points out of `systems` (terminal), nothi
 | `core.address` | One canonical address |
 | `core.customer_address` | One canonical customer-address relationship |
 | `core.order_address_snapshot` | One immutable order address snapshot |
-| `core.order` | One canonical order |
+| `core.orders` | One canonical order (physically aliased `orders`; ORDER is a Snowflake reserved word -- the dbt model/file/ref stays named `order`) |
 | `core.payment` | One canonical payment |
 | `core.product` | One canonical product |
 | `core.order_line` | One canonical order line |
@@ -290,9 +298,9 @@ The systems branch exists only for controlled access to current source-conformed
 
 **Core** declares canonical durable entities, relationships, and events at stable grains, and is the mandatory foundation everything else builds on. `core.customer` is deliberately narrow: identity and source metadata only. It used to also carry `first_ordered_at` / `last_ordered_at` / `lifetime_order_count` / `is_repeat_customer`, sourced from order activity -- that was wrong, because it made the canonical Customer record change shape based on order behaviour rather than customer identity. Those attributes now live in `marts.dim_customer` (sourced from `logical.customer_order_sequence`), where behavioural, order-derived context belongs. `core.customer_user` and `core.customer_address` stay in Core, not Logical, because they are source-native relationship records with their own source relationship ids and validity windows -- they are canonical facts about the business, not a derived interpretation. `core.order_line` is the canonical source order-line record built directly from staging; it does not carry commercial interpretation (extended amounts, product context), which is Logical's job.
 
-Customer key lineage is canonicalized in Core: staging customer records generate `core.customer.customer_sk`; staging order records join to `core.customer` and carry `core.order.customer_sk`; `marts.fct_order.customer_sk` is selected from `core.order` and never regenerated in the mart. Product/order-line key lineage is canonicalized the same way through `core.product` and `core.order_line`.
+Customer key lineage is canonicalized in Core: staging customer records generate `core.customer.customer_sk`; staging order records join to `core.customer` and carry `core.orders.customer_sk`; `marts.fct_order.customer_sk` is selected from `core.orders` and never regenerated in the mart. Product/order-line key lineage is canonicalized the same way through `core.product` and `core.order_line`.
 
-**Logical** owns reusable derived transformations built on top of Core (not Staging -- this was a dependency-direction bug in the previous iteration of this reference and has been corrected). `logical.order_payment_position` joins `core.order` + `core.payment`. `logical.customer_order_sequence` sequences `core.order`. `logical.order_line_amounts` joins `core.order_line` + `core.product` for line commercial amounts; its `unit_price`/`current_product_name` columns are explicitly documented as the *current* product record joined on at transformation time, not an at-purchase snapshot, because the underlying seed/source data has no purchase-time price or name history -- claiming "snapshot" semantics here would be a hidden acuuracy bug. `logical.customer_contact_profile` joins `core.customer_user` + `core.customer_address` (resolving through `core.user` / `core.address`) to select the current primary contact/address -- it is the derived, enriched business view that a hypothetical `logical.customer_addresses` would otherwise be; a separate model for that was judged unnecessary since `customer_contact_profile` already covers it. Payment completeness, operational status, commercial status, completion flags, and overpayment flags are based on captured payment value only; pending payment attempts remain diagnostics and do not create settled revenue. Zero-value orders are classified explicitly as `no_charge` / `not_required` and are not counted as completed revenue events.
+**Logical** owns reusable derived transformations built on top of Core (not Staging -- this was a dependency-direction bug in the previous iteration of this reference and has been corrected). `logical.order_payment_position` joins `core.orders` + `core.payment`. `logical.customer_order_sequence` sequences `core.orders`. `logical.order_line_amounts` joins `core.order_line` + `core.product` for line commercial amounts; its `current_catalogue_unit_price`/`current_catalogue_line_value`/`current_product_name` columns are explicitly, unambiguously prefixed `current_`/`current_catalogue_` because they are the *current* product record joined on at transformation time, not an at-purchase snapshot -- the underlying seed/source data has no purchase-time price or name history, so claiming an unqualified "unit_price"/"line_amount" here would misrepresent current catalogue pricing as historical transactional fact. `logical.customer_contact_profile` joins `core.customer_user` + `core.customer_address` (resolving through `core.user` / `core.address`) to select the current primary contact/address -- it is the derived, enriched business view that a hypothetical `logical.customer_addresses` would otherwise be; a separate model for that was judged unnecessary since `customer_contact_profile` already covers it. Payment completeness, operational status, commercial status, completion flags, and overpayment flags are based on captured payment value only; pending payment attempts remain diagnostics and do not create settled revenue. Zero-value orders are classified explicitly as `no_charge` / `not_required` and are not counted as completed revenue events.
 
 **Marts** contain only reusable facts and dimensions -- no reports. `fct_order` and `fct_order_line` are conformed facts built from Core + Logical. `dim_customer` is the right place for repeat-order behavioural attributes (moved here from Core, see above) because it resolves current contact/address attributes *and* order-derived behaviour through Core and Logical for analytical consumption; it does not replace `core.customer` as the canonical identity anchor.
 
@@ -320,12 +328,14 @@ don't collide.
 
 This repo only ships a `dev` DuckDB profile, so the Snowflake-style production layout cannot
 actually be exercised here -- it is a documentation concern, not something fakeable against a
-single local DuckDB file. The intended production mapping is:
+single local DuckDB file (DuckDB does not emulate multiple Snowflake databases; this table is a
+naming/mapping reference only, not a claim of additional local schemas beyond what
+`macros/generate_schema_name.sql` actually creates). The intended production mapping is:
 
 | Layer | Local DuckDB dev schema | Production Snowflake location |
 | --- | --- | --- |
-| Source / Manual Inputs | `raw` (seed) | `RAW.<source>` / `RAW.INPUTS` |
-| Source / JSON landing | `source_json` | `PRD.SOURCE_JSON` |
+| Application/source seed + local `source_json` simulation | `raw` (seed) + `source_json` (local JSON/CDC simulation models, not a real production layer) | `RAW.<source>` |
+| Manual Inputs | `inputs` (seed) | `RAW.INPUTS` |
 | Landing | `landing` | `PRD.LANDING` |
 | Staging | `staging` | `PRD.STAGING` |
 | Systems | `systems` | `PRD.SYSTEMS` |
@@ -333,8 +343,14 @@ single local DuckDB file. The intended production mapping is:
 | Logical | `logical` | `PRD.LOGICAL` |
 | Marts | `marts` | `PRD.MARTS` |
 | Reporting | `reporting` | `PRD.REPORTING` |
-| Semantic | `semantic` | `PRD.SEMANTIC` |
+| Semantic | `semantic` | `PRD.SEMANTIC` / Snowflake semantic constructs |
 | Operational | `operational` | `PRD.OPERATIONAL` |
+
+Note that `source_json` (the `ext_*` models) is local simulation machinery that manufactures
+source-faithful JSON/CDC events out of flat seed tables so this repo can demonstrate CDC-currentness
+logic without a real CDC feed. It is not a real production layer and does not map to a `PRD.*`
+location -- in production, `RAW.<source>` would already arrive in this shape (or Landing would read
+a real CDC stream directly), so `source_json` collapses away.
 
 ## Materialization Defaults
 
@@ -360,7 +376,7 @@ complexity.
 flowchart LR
   customer["core.customer<br/>canonical entity"]
   product["core.product<br/>canonical entity"]
-  order["core.order<br/>canonical event header"]
+  order["core.orders<br/>canonical event header"]
   line["core.order_line<br/>canonical event/relationship"]
   user["core.user<br/>canonical entity"]
   customer_user["core.customer_user<br/>canonical relationship"]
@@ -408,8 +424,8 @@ flowchart LR
 | `core.address` | Canonical Address entity for mutable/current address concepts. |
 | `core.customer_address` | Canonical, source-native Customer-Address relationship carrying `customer_sk` and `address_sk`. |
 | `core.order_address_snapshot` | Immutable Order Address Snapshot captured at purchase time; orders do not rely on mutable current addresses for historical delivery context. |
-| `core.order` | Canonical Order event carrying `customer_sk` from `core.customer`. |
-| `core.order_line` | Canonical source Order Line record carrying `order_sk` from `core.order` and `product_sk` from `core.product`. |
+| `core.orders` | Canonical Order event carrying `customer_sk` from `core.customer`. Physically aliased `orders` because ORDER is a Snowflake reserved word. |
+| `core.order_line` | Canonical source Order Line record carrying `order_sk` from `core.orders` and `product_sk` from `core.product`. |
 | `core.product` | Canonical Product entity and sole authority for `product_sk`. |
 | `core.payment` | Canonical Payment event that belongs to Order. Payment should not redundantly carry Customer or Product keys. |
 | `core.customer_marketing_exclusion` | Canonical, business-maintained Manual Inputs record of a marketing-exclusion decision. |

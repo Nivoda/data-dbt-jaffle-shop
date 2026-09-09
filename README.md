@@ -37,7 +37,9 @@ The mandatory discipline is the trusted business foundation through Core (Stagin
 
 ## Source Fixtures
 
-The static source fixture set lives in `seeds/ecom/` and `seeds/inputs/`, loaded into the `raw` schema:
+The static source fixture set lives in `seeds/ecom/` and `seeds/inputs/`:
+
+Application/source seeds load into the `raw` schema:
 
 - `raw_customers`
 - `raw_users`
@@ -48,13 +50,20 @@ The static source fixture set lives in `seeds/ecom/` and `seeds/inputs/`, loaded
 - `raw_orders`
 - `raw_items`
 - `raw_products`
-- `raw_customer_marketing_exclusions` (Manual Inputs fixture -- see docs/architecture.md)
+
+The Manual Inputs fixture loads into its own `inputs` schema, kept physically
+distinct from `raw` so it is never mistaken for ordinary source-system data
+(see docs/architecture.md):
+
+- `raw_customer_marketing_exclusions` -> `inputs.raw_customer_marketing_exclusions`
 
 These seed files are part of the reference implementation. Keep them in the repo unless the architecture is deliberately changed.
 
 ## Local Validation
 
-Use the project profile in this repository:
+This repository commits a local-only, credential-free DuckDB `profiles.yml` at
+the repo root, so a clean clone works with no manual profile setup. Use the
+project profile in this repository:
 
 ```bash
 uv sync

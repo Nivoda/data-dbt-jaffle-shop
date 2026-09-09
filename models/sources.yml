@@ -55,11 +55,13 @@ sources:
         description: One record per SKU for items sold in stores
 
   - name: inputs
-    schema: raw
+    schema: inputs
     description: >
-      Governed manual/business-maintained inputs. In production this maps to a
-      RAW.INPUTS-style governed location (see docs/architecture.md); locally it is
-      loaded as a seed fixture that demonstrates the same contract.
+      Governed manual/business-maintained inputs. Physically separate from the
+      `raw` schema used by ordinary application seeds. In production this maps to
+      RAW.INPUTS (see docs/architecture.md); locally it is loaded as a seed
+      fixture, materialized into its own `inputs` schema, that demonstrates the
+      same contract.
     tables:
       - name: raw_customer_marketing_exclusions
         description: One record per customer marketing-exclusion decision, corrections/overrides are auditable via valid_from/valid_to and updated_by/updated_at.

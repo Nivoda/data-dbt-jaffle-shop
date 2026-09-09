@@ -93,7 +93,7 @@ models:
             permitted_dimensions: [first_ordered_at, last_ordered_at, is_repeat_customer]
 
   - name: fct_order
-    description: Analytical Order fact and semantic Order metric surface. The grain is one order. It uses core.order.customer_sk, which is sourced from the canonical Customer object, and carries order-level measures rolled up from canonical order lines.
+    description: Analytical Order fact and semantic Order metric surface. The grain is one order. It uses core.orders.customer_sk, which is sourced from the canonical Customer object, and carries order-level measures rolled up from canonical order lines.
     semantic_model:
       enabled: true
     agg_time_dimension: ordered_at
@@ -113,7 +113,7 @@ models:
           type: primary
           name: order
       - name: customer_sk
-        description: Canonical Customer relationship key selected from core.order, where it was sourced from core.customer.
+        description: Canonical Customer relationship key selected from core.orders, where it was sourced from core.customer.
         data_tests:
           - relationships:
               arguments:
@@ -144,8 +144,14 @@ models:
         description: Count of canonical order lines on the order.
       - name: item_quantity
         description: Total item quantity across canonical order lines on the order.
-      - name: merchandise_subtotal
-        description: Merchandise subtotal rolled up from canonical order-line commercial calculations.
+      - name: current_catalogue_value
+        label: Current Catalogue Value
+        description: >
+          Sum of current-catalogue line values (today's product prices times
+          quantity) rolled up from logical.order_line_amounts. This is NOT
+          booked revenue and NOT a purchase-time amount -- it reflects current
+          product pricing, not what was actually charged. Use `subtotal` (from
+          core.orders) for the real transactional subtotal/revenue amount.
       - name: is_completed_order
         description: True when a positive-value order is exactly covered by captured payment value.
         dimension:
@@ -228,7 +234,7 @@ models:
           type: foreign
           name: product
       - name: customer_sk
-        description: Canonical Customer relationship key selected from core.order through the line's order.
+        description: Canonical Customer relationship key selected from core.orders through the line's order.
         data_tests:
           - relationships:
               arguments:
@@ -259,8 +265,13 @@ models:
           type: categorical
       - name: quantity
         description: Purchased quantity on the order line.
-      - name: line_amount
-        description: Line amount (quantity times current unit price; see logical.order_line_amounts).
+      - name: current_catalogue_line_value
+        label: Current Catalogue Line Value
+        description: >
+          Quantity times current catalogue unit price (today's product price),
+          from logical.order_line_amounts. This is NOT booked revenue and NOT
+          a purchase-time amount -- it is a current-pricing comparison value
+          only.
     metrics:
       - name: order_line_count
         description: Count of order lines by permitted order, product, customer, and time dimensions.

@@ -71,9 +71,14 @@ seeds:
           country_code: varchar
           captured_at: timestamp
     inputs:
-      # Governed manual/business-maintained inputs fixture. Gated behind the same
-      # var as the other seeds so a plain `dbt seed` (no vars) does not silently
-      # populate a "production-looking" governed input from a local fixture.
+      # Governed manual/business-maintained inputs fixture. Physically distinct
+      # from ordinary application seeds: it materializes into its own `inputs`
+      # schema (not `raw`) so it is never mistaken for source-system data. See
+      # docs/architecture.md for the local `inputs.*` -> production `RAW.INPUTS`
+      # mapping. Gated behind the same var as the other seeds so a plain
+      # `dbt seed` (no vars) does not silently populate a "production-looking"
+      # governed input from a local fixture.
+      +schema: inputs
       +enabled: "{{ var('load_source_data', false) }}"
       raw_customer_marketing_exclusions:
         +column_types:
@@ -110,7 +115,7 @@ models:
         grain: one current source object
         model_class: source-specific staging model
         maturity: private
-        intended_consumers: [logical, core, systems, cross_cutting_quality_controls]
+        intended_consumers: [core, systems, cross_cutting_quality_controls]
     "2a. core":
       +materialized: table
       +schema: core
@@ -135,7 +140,7 @@ models:
         grain: one reusable transformation result at declared model grain
         model_class: reusable logical transformation
         maturity: reusable
-        intended_consumers: [core, marts, reporting, semantic, operational]
+        intended_consumers: [marts, reporting, semantic, operational]
     "4. marts":
       +materialized: table
       +schema: marts

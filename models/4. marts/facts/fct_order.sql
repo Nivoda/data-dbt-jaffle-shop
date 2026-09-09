@@ -1,5 +1,13 @@
 {{ config(alias='fct_order') }}
 
+-- The real transactional subtotal is `subtotal_cents`/`subtotal` below, sourced
+-- from core.orders (ultimately raw_orders.subtotal) -- the canonical order-level
+-- amount captured on the order itself. `current_catalogue_value_cents`/
+-- `current_catalogue_value` is a SEPARATE, clearly-labelled comparison value
+-- summed from logical.order_line_amounts' current-catalogue line values; it
+-- reflects TODAY's product prices, not what was actually charged, and must
+-- never be treated as booked revenue/subtotal.
+
 with orders as (
     select * from {{ ref('order') }}
 ),
@@ -17,8 +25,8 @@ order_line_summary as (
         order_id,
         count(*) as order_line_count,
         sum(quantity) as item_quantity,
-        sum(line_amount_cents) as merchandise_subtotal_cents,
-        sum(line_amount) as merchandise_subtotal
+        sum(current_catalogue_line_value_cents) as current_catalogue_value_cents,
+        sum(current_catalogue_line_value) as current_catalogue_value
     from {{ ref('int_order_line_amounts') }}
     group by 1
 )
@@ -38,8 +46,8 @@ select
     orders.order_total,
     coalesce(order_line_summary.order_line_count, 0) as order_line_count,
     coalesce(order_line_summary.item_quantity, 0) as item_quantity,
-    coalesce(order_line_summary.merchandise_subtotal_cents, 0) as merchandise_subtotal_cents,
-    coalesce(order_line_summary.merchandise_subtotal, 0) as merchandise_subtotal,
+    coalesce(order_line_summary.current_catalogue_value_cents, 0) as current_catalogue_value_cents,
+    coalesce(order_line_summary.current_catalogue_value, 0) as current_catalogue_value,
     order_payment_position.total_payment_attempt_count,
     order_payment_position.pending_payment_count,
     order_payment_position.total_attempted_amount_cents,

@@ -1,6 +1,6 @@
 {{ config(alias='customer_order_sequence') }}
 
--- Retargeted to read core.order (not staging) so dependency direction is
+-- Retargeted to read core.orders (not staging) so dependency direction is
 -- Staging -> Core -> Logical, never the reverse.
 with orders as (
     select * from {{ ref('order') }}

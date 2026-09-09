@@ -373,7 +373,7 @@ models:
         description: Ratio of captured payment cents to order total cents.
 
   - name: int_customer_order_sequence
-    description: Reusable customer order sequencing, first-order logic, and repeat-order logic, sourced from core.order. The grain is one order.
+    description: Reusable customer order sequencing, first-order logic, and repeat-order logic, sourced from core.orders. The grain is one order.
     config:
       schema: logical
       alias: customer_order_sequence
@@ -386,7 +386,7 @@ models:
         data_tests: [not_null]
 
   - name: int_order_line_amounts
-    description: Reusable order-line commercial calculation that joins core order lines to core products for current product name/price context and line amounts. The grain is one order line.
+    description: Reusable order-line commercial calculation that joins core order lines to core products for current product name/price context and line amounts. All price/value columns are explicitly qualified `current_catalogue_*` because they reflect the CURRENT product record joined on at transformation time, not an at-purchase historical amount -- the source data carries no purchase-time price history. The grain is one order line.
     config:
       schema: logical
       alias: order_line_amounts
@@ -400,18 +400,18 @@ models:
       - name: product_id
         description: Source product/SKU key for the purchased item.
         data_tests: [not_null]
-      - name: unit_price_cents
-        description: Current product price in cents joined onto the line at transformation time (not an at-purchase snapshot; the source data has no purchase-time price history).
+      - name: current_catalogue_unit_price_cents
+        description: Current product price in cents joined onto the line at transformation time (not an at-purchase snapshot; the source data has no purchase-time price history). Never treat this as the price actually charged.
         data_tests: [not_null]
-      - name: line_amount_cents
-        description: Quantity multiplied by unit price in cents.
+      - name: current_catalogue_line_value_cents
+        description: Quantity multiplied by current_catalogue_unit_price_cents. Not a historical transactional amount -- see column description above.
         data_tests: [not_null]
 
   - name: order
-    description: Canonical durable order event. It carries customer.customer_sk as the canonical Customer relationship key while retaining customer_id as the source/natural identifier. The grain is one order.
+    description: Canonical durable order event. Physically aliased `orders` (not `order`) because ORDER is a reserved word in Snowflake; the dbt model/file/ref name stays `order`. It carries customer.customer_sk as the canonical Customer relationship key while retaining customer_id as the source/natural identifier. The grain is one order.
     config:
       schema: core
-      alias: order
+      alias: orders
       meta:
         grain: one order
         model_class: canonical entity/event header
@@ -458,7 +458,7 @@ models:
         data_tests: [not_null, unique]
 
   - name: order_line
-    description: Canonical source order-line record, built directly from staging. It carries canonical order_sk from core.order and product_sk from core.product while retaining source identifiers for traceability. Commercial interpretation (extended amounts, current product context) is derived downstream in logical.order_line_amounts. The grain is one order line.
+    description: Canonical source order-line record, built directly from staging. It carries canonical order_sk from core.orders and product_sk from core.product while retaining source identifiers for traceability. Commercial interpretation (extended amounts, current product context) is derived downstream in logical.order_line_amounts. The grain is one order line.
     config:
       schema: core
       alias: order_line
@@ -475,7 +475,7 @@ models:
         description: Natural order-line key.
         data_tests: [not_null, unique]
       - name: order_sk
-        description: Canonical Order relationship key selected from core.order.
+        description: Canonical Order relationship key selected from core.orders.
         data_tests:
           - not_null
           - relationships:

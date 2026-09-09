@@ -1,6 +1,6 @@
 {{ config(alias='order_payment_position') }}
 
--- Retargeted to read core.order + core.payment (not staging) so dependency
+-- Retargeted to read core.orders + core.payment (not staging) so dependency
 -- direction is Staging -> Core -> Logical, never the reverse.
 with orders as (
     select * from {{ ref('order') }}

@@ -1,4 +1,7 @@
-{{ config(alias='order') }}
+{{ config(alias='orders') }}
+
+-- Physical alias is 'orders' (not 'order') because ORDER is a reserved word in
+-- Snowflake; the dbt model/file/ref stays named 'order' to minimize ref churn.
 
 with orders as (
     select * from {{ ref('stg_ecom__orders') }}
