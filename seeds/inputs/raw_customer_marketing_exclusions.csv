@@ -1,0 +1,5 @@
+customer_id,is_excluded,exclusion_reason,valid_from,valid_to,updated_by,updated_at
+50a2d1c4-d788-4498-a6f7-dd75d4db588f,true,customer_requested_opt_out,2024-06-01 09:00:00,,marketing.ops@example.com,2024-06-01 09:00:00
+438005c2-dd1d-48aa-8bfd-7fb06851b5f8,true,legal_hold,2024-07-15 12:30:00,,legal.compliance@example.com,2024-07-15 12:30:00
+5261268c-aa94-438a-921a-05efc0d414ac,true,duplicate_customer_record,2024-08-02 08:00:00,2024-09-01 00:00:00,data.ops@example.com,2024-08-02 08:00:00
+f8486fce-bc07-4a4f-a6e9-ed6a06ba996c,false,reinstated_after_review,2024-08-20 10:00:00,,marketing.ops@example.com,2024-08-20 10:00:00

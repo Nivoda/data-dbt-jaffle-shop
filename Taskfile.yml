@@ -1,0 +1,31 @@
+version: "3"
+
+silent: true
+
+tasks:
+  install:
+    cmds:
+      - uv sync
+
+  seed:
+    cmds:
+      - >
+        uv run dbt seed --full-refresh --vars '{"load_source_data": true}' --profiles-dir .
+
+  build:
+    cmds:
+      - uv run dbt deps
+      - uv run dbt parse --profiles-dir .
+      - uv run dbt seed --full-refresh --vars '{"load_source_data": true}' --profiles-dir .
+      - uv run dbt build --profiles-dir .
+      - uv run dbt test --profiles-dir .
+      - uv run dbt source freshness --profiles-dir .
+
+  clean:
+    cmds:
+      - rm -rf target dbt_packages
+
+  load:
+    cmds:
+      - task: install
+      - task: seed

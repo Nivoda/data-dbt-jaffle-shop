@@ -1,0 +1,51 @@
+version: 2
+
+models:
+  - name: customer_360
+    description: Bounded Customer 360 decision report for customer identity, contactability, and commercial posture. It is the single consumer-facing customer report in this reference implementation, consuming marts.dim_customer and marts.fct_order directly. The grain is one current customer.
+    config:
+      schema: reporting
+      alias: customer_360
+      meta:
+        grain: one current customer
+        model_class: consumer-facing report
+        maturity: consumer_specific
+        intended_consumers: [customer_360_review, business_operations]
+    columns:
+      - name: customer_sk
+        description: Canonical Customer relationship key carried through marts.dim_customer.
+        data_tests: [not_null, unique]
+      - name: customer_id
+        description: Natural customer key.
+        data_tests: [not_null, unique]
+      - name: customer_value_band
+        description: Bounded Customer 360 value classification.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['high_value', 'active_value', 'no_completed_revenue']
+      - name: first_ordered_at
+        description: First order timestamp aggregated directly from marts.fct_order.
+      - name: last_ordered_at
+        description: Most recent order timestamp aggregated directly from marts.fct_order.
+      - name: order_count
+        description: Customer order count aggregated directly from marts.fct_order.
+        data_tests: [not_null]
+      - name: completed_order_count
+        description: Completed positive-value order count aggregated directly from marts.fct_order.
+        data_tests: [not_null]
+      - name: gross_revenue
+        description: Gross order value aggregated directly from marts.fct_order.
+        data_tests: [not_null]
+      - name: completed_revenue
+        description: Completed captured revenue aggregated directly from marts.fct_order.
+        data_tests: [not_null]
+      - name: has_repeat_order
+        description: True when marts.fct_order shows at least one repeat order for the customer.
+        data_tests: [not_null]
+      - name: is_email_contactable
+        description: True when marts.dim_customer supplies a selected primary email address.
+        data_tests: [not_null]
+      - name: is_phone_contactable
+        description: True when marts.dim_customer supplies a selected primary phone number.
+        data_tests: [not_null]

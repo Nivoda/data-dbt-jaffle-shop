@@ -1,0 +1,293 @@
+version: 2
+
+models:
+  - name: customer
+    description: Canonical durable Customer entity and semantic Customer relationship anchor. It is intentionally narrow and remains the stable customer interface for future multi-system conformance. The grain is one customer. It deliberately carries no order-derived behavioural attributes (see marts.dim_customer for repeat-order metrics), so it has no agg_time_dimension.
+    semantic_model:
+      enabled: true
+    config:
+      schema: core
+      alias: customer
+      meta:
+        grain: one customer
+        model_class: canonical object/entity
+        maturity: certified
+        intended_consumers: [core, mart_facts, semantic_definitions]
+    columns:
+      - name: customer_sk
+        description: Surrogate key generated from customer_id.
+        data_tests: [not_null, unique]
+        entity:
+          type: primary
+          name: customer
+      - name: customer_id
+        description: Natural customer key.
+        data_tests: [not_null, unique]
+      - name: customer_name
+        description: Canonical customer display name.
+        dimension:
+          type: categorical
+
+  - name: dim_customer
+    description: Analytical Customer dimension carrying repeat-order behavioural attributes derived from logical.customer_order_sequence. Semantic metrics about repeat-order behaviour are re-pointed here (not core.customer) because that behaviour is order-derived, not part of the canonical Customer entity.
+    semantic_model:
+      enabled: true
+    agg_time_dimension: first_ordered_at
+    config:
+      schema: marts
+      alias: dim_customer
+      meta:
+        grain: one customer
+        model_class: analytical dimension
+        maturity: reusable
+        intended_consumers: [analytics, reporting, semantic_definitions]
+    columns:
+      - name: customer_sk
+        description: Canonical Customer relationship key selected from core.customer; not regenerated here.
+        data_tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('customer')
+                field: customer_sk
+        entity:
+          type: primary
+          name: dim_customer
+      - name: customer_id
+        description: Natural customer key retained for traceability.
+        data_tests: [not_null, unique]
+      - name: primary_email_address
+        description: Selected current primary user email address for analytical consumption.
+        data_tests: [not_null]
+      - name: default_address_id
+        description: Selected current default customer address key for analytical consumption.
+        data_tests: [not_null]
+      - name: first_ordered_at
+        description: First order timestamp from logical.customer_order_sequence. Not present on core.customer, which stays free of order-derived behavioural drift.
+        granularity: day
+        dimension:
+          type: time
+      - name: last_ordered_at
+        description: Most recent order timestamp from logical.customer_order_sequence.
+        granularity: day
+        dimension:
+          type: time
+      - name: lifetime_order_count
+        description: Lifetime order count from logical.customer_order_sequence.
+        data_tests: [not_null]
+      - name: is_repeat_customer
+        description: True when the customer has more than one lifetime order.
+        data_tests: [not_null]
+        dimension:
+          type: categorical
+    metrics:
+      - name: repeat_customer_count
+        description: Count of customers with more than one lifetime order.
+        label: Repeat Customer Count
+        type: simple
+        agg: sum
+        expr: "case when is_repeat_customer then 1 else 0 end"
+        config:
+          meta:
+            permitted_dimensions: [first_ordered_at, last_ordered_at, is_repeat_customer]
+
+  - name: fct_order
+    description: Analytical Order fact and semantic Order metric surface. The grain is one order. It uses core.orders.customer_sk, which is sourced from the canonical Customer object, and carries order-level measures rolled up from canonical order lines.
+    semantic_model:
+      enabled: true
+    agg_time_dimension: ordered_at
+    config:
+      schema: marts
+      alias: fct_order
+      meta:
+        grain: one order
+        model_class: conformed analytical fact
+        maturity: reusable
+        intended_consumers: [analytics, reporting, semantic_definitions]
+    columns:
+      - name: order_sk
+        description: Order surrogate key.
+        data_tests: [not_null, unique]
+        entity:
+          type: primary
+          name: order
+      - name: customer_sk
+        description: Canonical Customer relationship key selected from core.orders, where it was sourced from core.customer.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('customer')
+                field: customer_sk
+        entity:
+          type: foreign
+          name: customer
+      - name: order_id
+        description: Natural order key.
+        data_tests: [not_null, unique]
+      - name: ordered_at
+        description: Order timestamp.
+        granularity: day
+        dimension:
+          type: time
+      - name: order_commercial_status
+        description: Reusable commercial status carried into the fact, based on captured payments only.
+        dimension:
+          type: categorical
+      - name: payment_operational_status
+        description: Operational payment status based on captured payments only.
+        dimension:
+          type: categorical
+      - name: captured_paid_amount
+        description: Settled captured payment amount used by the semantic revenue metric.
+      - name: order_line_count
+        description: Count of canonical order lines on the order.
+      - name: item_quantity
+        description: Total item quantity across canonical order lines on the order.
+      - name: current_catalogue_value
+        label: Current Catalogue Value
+        description: >
+          Sum of current-catalogue line values (today's product prices times
+          quantity) rolled up from logical.order_line_amounts. This is NOT
+          booked revenue and NOT a purchase-time amount -- it reflects current
+          product pricing, not what was actually charged. Use `subtotal` (from
+          core.orders) for the real transactional subtotal/revenue amount.
+      - name: is_completed_order
+        description: True when a positive-value order is exactly covered by captured payment value.
+        dimension:
+          type: categorical
+      - name: is_first_order
+        description: True when this is the customer's first order.
+        dimension:
+          type: categorical
+      - name: is_repeat_order
+        description: True when this is not the customer's first order.
+        dimension:
+          type: categorical
+    metrics:
+      - name: order_count
+        description: Count of orders by permitted order and customer dimensions.
+        label: Order Count
+        type: simple
+        agg: count_distinct
+        expr: order_id
+        config:
+          meta:
+            permitted_dimensions: [ordered_at, order_commercial_status, payment_operational_status, is_completed_order, is_first_order, is_repeat_order, customer]
+      - name: completed_order_count
+        description: Count of completed positive-value orders, where completion is based on captured payment value.
+        label: Completed Order Count
+        type: simple
+        agg: sum
+        expr: "case when is_completed_order then 1 else 0 end"
+        config:
+          meta:
+            permitted_dimensions: [ordered_at, order_commercial_status, payment_operational_status, is_first_order, is_repeat_order, customer]
+      - name: revenue
+        description: Settled captured revenue by permitted order and customer dimensions; pending payments are excluded.
+        label: Revenue
+        type: simple
+        agg: sum
+        expr: captured_paid_amount
+        config:
+          meta:
+            permitted_dimensions: [ordered_at, order_commercial_status, payment_operational_status, is_completed_order, is_first_order, is_repeat_order, customer]
+
+  - name: fct_order_line
+    description: Analytical Order Line fact backed by canonical order lines. The grain is one order line.
+    semantic_model:
+      enabled: true
+    agg_time_dimension: ordered_at
+    config:
+      schema: marts
+      alias: fct_order_line
+      meta:
+        grain: one order line
+        model_class: conformed analytical fact
+        maturity: reusable
+        intended_consumers: [analytics, reporting, semantic_definitions]
+    columns:
+      - name: order_line_sk
+        description: Order Line surrogate key from core.order_line.
+        data_tests: [not_null, unique]
+        entity:
+          type: primary
+          name: order_line
+      - name: order_sk
+        description: Canonical Order relationship key selected from core.order_line.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('order')
+                field: order_sk
+        entity:
+          type: foreign
+          name: order
+      - name: product_sk
+        description: Canonical Product relationship key selected from core.order_line.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('product')
+                field: product_sk
+        entity:
+          type: foreign
+          name: product
+      - name: customer_sk
+        description: Canonical Customer relationship key selected from core.orders through the line's order.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('customer')
+                field: customer_sk
+        entity:
+          type: foreign
+          name: customer
+      - name: order_line_id
+        description: Natural order-line key.
+        data_tests: [not_null, unique]
+      - name: order_id
+        description: Natural order key retained for traceability.
+      - name: product_id
+        description: Natural product/SKU key retained for traceability.
+      - name: current_product_name
+        description: Current product name joined onto the line at transformation time (not a purchase-time snapshot; see logical.order_line_amounts).
+        dimension:
+          type: categorical
+      - name: ordered_at
+        description: Order timestamp for time-based line analysis.
+        granularity: day
+        dimension:
+          type: time
+      - name: order_commercial_status
+        description: Reusable commercial status carried from order/payment logic.
+        dimension:
+          type: categorical
+      - name: quantity
+        description: Purchased quantity on the order line.
+      - name: current_catalogue_line_value
+        label: Current Catalogue Line Value
+        description: >
+          Quantity times current catalogue unit price (today's product price),
+          from logical.order_line_amounts. This is NOT booked revenue and NOT
+          a purchase-time amount -- it is a current-pricing comparison value
+          only.
+    metrics:
+      - name: order_line_count
+        description: Count of order lines by permitted order, product, customer, and time dimensions.
+        label: Order Line Count
+        type: simple
+        agg: count_distinct
+        expr: order_line_id
+        config:
+          meta:
+            permitted_dimensions: [ordered_at, current_product_name, order_commercial_status, order, product, customer]
+      - name: item_quantity
+        description: Total purchased item quantity by permitted order, product, customer, and time dimensions.
+        label: Item Quantity
+        type: simple
+        agg: sum
+        expr: quantity
+        config:
+          meta:
+            permitted_dimensions: [ordered_at, current_product_name, order_commercial_status, order, product, customer]

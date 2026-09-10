@@ -1,0 +1,565 @@
+version: 2
+
+models:
+  - name: ext_ecom__users
+    description: Source-faithful JSON/CDC user ingestion events from the raw user seed source. The grain is one source user CDC event.
+    config:
+      schema: source_json
+      alias: ext_ecom__users
+    columns:
+      - name: ingestion_event_id
+        description: Unique identifier for the synthetic user ingestion event.
+        data_tests: [not_null, unique]
+      - name: source_record_id
+        description: Source user key.
+        data_tests: [not_null]
+      - name: operation_type
+        description: CDC operation code from the source feed.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['I', 'U', 'D']
+
+  - name: ext_ecom__customer_users
+    description: Source-faithful JSON/CDC customer-user relationship events. The grain is one source customer-user relationship CDC event.
+    config:
+      schema: source_json
+      alias: ext_ecom__customer_users
+    columns:
+      - name: ingestion_event_id
+        description: Unique identifier for the synthetic relationship ingestion event.
+        data_tests: [not_null, unique]
+      - name: source_record_id
+        description: Source customer-user relationship key.
+        data_tests: [not_null]
+      - name: operation_type
+        description: CDC operation code from the source feed.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['I', 'U', 'D']
+
+  - name: ext_ecom__addresses
+    description: Source-faithful JSON/CDC address ingestion events from the raw address seed source. The grain is one source address CDC event.
+    config:
+      schema: source_json
+      alias: ext_ecom__addresses
+    columns:
+      - name: ingestion_event_id
+        description: Unique identifier for the synthetic address ingestion event.
+        data_tests: [not_null, unique]
+      - name: source_record_id
+        description: Source address key.
+        data_tests: [not_null]
+      - name: operation_type
+        description: CDC operation code from the source feed.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['I', 'U', 'D']
+
+  - name: ext_ecom__customer_addresses
+    description: Source-faithful JSON/CDC customer-address relationship events. The grain is one source customer-address relationship CDC event.
+    config:
+      schema: source_json
+      alias: ext_ecom__customer_addresses
+    columns:
+      - name: ingestion_event_id
+        description: Unique identifier for the synthetic relationship ingestion event.
+        data_tests: [not_null, unique]
+      - name: source_record_id
+        description: Source customer-address relationship key.
+        data_tests: [not_null]
+      - name: operation_type
+        description: CDC operation code from the source feed.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['I', 'U', 'D']
+
+  - name: ext_ecom__order_address_snapshots
+    description: Source-faithful JSON/CDC immutable order address snapshot events. The grain is one source order address snapshot CDC event.
+    config:
+      schema: source_json
+      alias: ext_ecom__order_address_snapshots
+    columns:
+      - name: ingestion_event_id
+        description: Unique identifier for the synthetic order address snapshot ingestion event.
+        data_tests: [not_null, unique]
+      - name: source_record_id
+        description: Source order address snapshot key.
+        data_tests: [not_null]
+      - name: operation_type
+        description: CDC operation code from the source feed.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['I', 'U', 'D']
+
+  - name: lnd_ecom__users_current
+    description: Current trusted user source record selected from CDC events. The grain is one current source user key.
+    config:
+      schema: landing
+      alias: lnd_ecom__users_current
+    columns:
+      - name: source_record_id
+        description: Source user key; unique after deterministic CDC deduplication.
+        data_tests: [not_null, unique]
+      - name: landing_current_rank
+        description: Rank from the deterministic ordering; retained as proof that selected rows are the winners.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [1]
+
+  - name: lnd_ecom__customer_users_current
+    description: Current trusted customer-user relationship source record selected from CDC events. The grain is one current source customer-user relationship key.
+    config:
+      schema: landing
+      alias: lnd_ecom__customer_users_current
+    columns:
+      - name: source_record_id
+        description: Source relationship key; unique after deterministic CDC deduplication.
+        data_tests: [not_null, unique]
+      - name: landing_current_rank
+        description: Rank from the deterministic ordering; retained as proof that selected rows are the winners.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [1]
+
+  - name: lnd_ecom__addresses_current
+    description: Current trusted address source record selected from CDC events. The grain is one current source address key.
+    config:
+      schema: landing
+      alias: lnd_ecom__addresses_current
+    columns:
+      - name: source_record_id
+        description: Source address key; unique after deterministic CDC deduplication.
+        data_tests: [not_null, unique]
+      - name: landing_current_rank
+        description: Rank from the deterministic ordering; retained as proof that selected rows are the winners.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [1]
+
+  - name: lnd_ecom__customer_addresses_current
+    description: Current trusted customer-address relationship source record selected from CDC events. The grain is one current source customer-address relationship key.
+    config:
+      schema: landing
+      alias: lnd_ecom__customer_addresses_current
+    columns:
+      - name: source_record_id
+        description: Source relationship key; unique after deterministic CDC deduplication.
+        data_tests: [not_null, unique]
+      - name: landing_current_rank
+        description: Rank from the deterministic ordering; retained as proof that selected rows are the winners.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [1]
+
+  - name: lnd_ecom__order_address_snapshots_current
+    description: Current trusted immutable order address snapshot selected from CDC events. The grain is one current source order address snapshot key.
+    config:
+      schema: landing
+      alias: lnd_ecom__order_address_snapshots_current
+    columns:
+      - name: source_record_id
+        description: Source order address snapshot key; unique after deterministic CDC deduplication.
+        data_tests: [not_null, unique]
+      - name: landing_current_rank
+        description: Rank from the deterministic ordering; retained as proof that selected rows are the winners.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [1]
+
+  - name: stg_ecom__users
+    description: Cleaned user source object with typed contact fields and source metadata. The grain is one current ecom user.
+    config:
+      schema: staging
+      alias: stg_ecom__users
+    columns:
+      - name: user_id
+        description: Stable user identifier from ecom.
+        data_tests: [not_null, unique]
+      - name: email_address
+        description: Standardised email address.
+        data_tests: [not_null, unique]
+      - name: source_user_status
+        description: Standardised source user status.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['active']
+
+  - name: stg_ecom__customer_users
+    description: Cleaned customer-user relationship source object. The grain is one current ecom customer-user relationship.
+    config:
+      schema: staging
+      alias: stg_ecom__customer_users
+    columns:
+      - name: customer_user_relationship_id
+        description: Stable source customer-user relationship identifier.
+        data_tests: [not_null, unique]
+      - name: customer_id
+        description: Source customer key for the relationship.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_ecom__customers')
+                field: customer_id
+      - name: user_id
+        description: Source user key for the relationship.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_ecom__users')
+                field: user_id
+      - name: relationship_role
+        description: Standardised relationship role.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['account_owner']
+
+  - name: stg_ecom__addresses
+    description: Cleaned address source object with standardised locality fields and source metadata. The grain is one current ecom address.
+    config:
+      schema: staging
+      alias: stg_ecom__addresses
+    columns:
+      - name: address_id
+        description: Stable address identifier from ecom.
+        data_tests: [not_null, unique]
+      - name: country_code
+        description: ISO-style country code.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['US']
+
+  - name: stg_ecom__customer_addresses
+    description: Cleaned customer-address relationship source object. The grain is one current ecom customer-address relationship.
+    config:
+      schema: staging
+      alias: stg_ecom__customer_addresses
+    columns:
+      - name: customer_address_relationship_id
+        description: Stable source customer-address relationship identifier.
+        data_tests: [not_null, unique]
+      - name: customer_id
+        description: Source customer key for the relationship.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_ecom__customers')
+                field: customer_id
+      - name: address_id
+        description: Source address key for the relationship.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_ecom__addresses')
+                field: address_id
+      - name: address_usage
+        description: Standardised address usage.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['shipping']
+
+  - name: stg_ecom__order_address_snapshots
+    description: Cleaned immutable order address snapshot source object. The grain is one current ecom order address snapshot.
+    config:
+      schema: staging
+      alias: stg_ecom__order_address_snapshots
+    columns:
+      - name: order_address_snapshot_id
+        description: Stable source order address snapshot identifier.
+        data_tests: [not_null, unique]
+      - name: order_id
+        description: Source order key for the immutable address snapshot.
+        data_tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('stg_ecom__orders')
+                field: order_id
+      - name: customer_id
+        description: Source customer key captured on the order address snapshot.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_ecom__customers')
+                field: customer_id
+
+  - name: sys_ecom__users
+    description: Controlled access view over current ecom user staging data. The grain is one current ecom user.
+    config:
+      schema: systems
+      alias: sys_ecom__users
+      materialized: view
+    columns:
+      - name: user_id
+        description: Source user key projected directly from staging.
+        data_tests: [not_null, unique]
+
+  - name: sys_ecom__customer_users
+    description: Controlled access view over current ecom customer-user relationship staging data. The grain is one current ecom customer-user relationship.
+    config:
+      schema: systems
+      alias: sys_ecom__customer_users
+      materialized: view
+    columns:
+      - name: customer_user_relationship_id
+        description: Source relationship key projected directly from staging.
+        data_tests: [not_null, unique]
+
+  - name: sys_ecom__addresses
+    description: Controlled access view over current ecom address staging data. The grain is one current ecom address.
+    config:
+      schema: systems
+      alias: sys_ecom__addresses
+      materialized: view
+    columns:
+      - name: address_id
+        description: Source address key projected directly from staging.
+        data_tests: [not_null, unique]
+
+  - name: sys_ecom__customer_addresses
+    description: Controlled access view over current ecom customer-address relationship staging data. The grain is one current ecom customer-address relationship.
+    config:
+      schema: systems
+      alias: sys_ecom__customer_addresses
+      materialized: view
+    columns:
+      - name: customer_address_relationship_id
+        description: Source relationship key projected directly from staging.
+        data_tests: [not_null, unique]
+
+  - name: sys_ecom__order_address_snapshots
+    description: Controlled access view over current ecom order address snapshot staging data. The grain is one current ecom order address snapshot.
+    config:
+      schema: systems
+      alias: sys_ecom__order_address_snapshots
+      materialized: view
+    columns:
+      - name: order_address_snapshot_id
+        description: Source order address snapshot key projected directly from staging.
+        data_tests: [not_null, unique]
+
+  - name: int_customer_contact_profile
+    description: Reusable derived customer contact/address view. It reads core.customer_user and core.customer_address (source-native canonical relationship records) and resolves current contact details by joining core.user and core.address. The grain is one customer.
+    config:
+      schema: logical
+      alias: customer_contact_profile
+    columns:
+      - name: customer_id
+        description: Source customer key for the selected current contact/address relationship.
+        data_tests: [not_null, unique]
+      - name: primary_customer_user_relationship_id
+        description: Selected source customer-user relationship key.
+        data_tests: [not_null]
+      - name: primary_user_id
+        description: Source user key on the selected primary customer-user relationship.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('user')
+                field: user_id
+      - name: default_customer_address_relationship_id
+        description: Selected source customer-address relationship key.
+        data_tests: [not_null]
+      - name: default_address_id
+        description: Source address key on the selected default customer-address relationship.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('address')
+                field: address_id
+
+  - name: user
+    description: Canonical durable User entity. The grain is one user.
+    config:
+      schema: core
+      alias: user
+      meta:
+        grain: one user
+        model_class: canonical entity
+        maturity: certified
+        intended_consumers: [core, mart_dimensions]
+    columns:
+      - name: user_sk
+        description: Surrogate key generated from user_id only in the canonical User object.
+        data_tests: [not_null, unique]
+      - name: user_id
+        description: Natural user key.
+        data_tests: [not_null, unique]
+      - name: email_address
+        description: Canonical user email address.
+        data_tests: [not_null, unique]
+
+  - name: customer_user
+    description: Canonical, source-native Customer-User relationship object. It carries its own source relationship id and validity window, which is why it stays in Core rather than being modelled as a derived Logical view. The grain is one customer-user relationship.
+    config:
+      schema: core
+      alias: customer_user
+      meta:
+        grain: one customer-user relationship
+        model_class: canonical relationship
+        maturity: certified
+        intended_consumers: [core, mart_dimensions, logical]
+    columns:
+      - name: customer_user_sk
+        description: Surrogate key for the canonical relationship.
+        data_tests: [not_null, unique]
+      - name: customer_user_relationship_id
+        description: Natural relationship key.
+        data_tests: [not_null, unique]
+      - name: customer_sk
+        description: Canonical Customer relationship key selected from core.customer.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('customer')
+                field: customer_sk
+      - name: user_sk
+        description: Canonical User relationship key selected from core.user.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('user')
+                field: user_sk
+
+  - name: address
+    description: Canonical durable Address entity. The grain is one address.
+    config:
+      schema: core
+      alias: address
+      meta:
+        grain: one address
+        model_class: canonical entity
+        maturity: certified
+        intended_consumers: [core, mart_dimensions]
+    columns:
+      - name: address_sk
+        description: Surrogate key generated from address_id only in the canonical Address object.
+        data_tests: [not_null, unique]
+      - name: address_id
+        description: Natural address key.
+        data_tests: [not_null, unique]
+
+  - name: customer_address
+    description: Canonical, source-native Customer-Address relationship object. It carries its own source relationship id and validity window, which is why it stays in Core rather than being modelled as a derived Logical view; a hypothetical logical.customer_addresses would instead be the derived/enriched business view, which int_customer_contact_profile already provides. The grain is one customer-address relationship.
+    config:
+      schema: core
+      alias: customer_address
+      meta:
+        grain: one customer-address relationship
+        model_class: canonical relationship
+        maturity: certified
+        intended_consumers: [core, mart_dimensions, logical]
+    columns:
+      - name: customer_address_sk
+        description: Surrogate key for the canonical relationship.
+        data_tests: [not_null, unique]
+      - name: customer_address_relationship_id
+        description: Natural relationship key.
+        data_tests: [not_null, unique]
+      - name: customer_sk
+        description: Canonical Customer relationship key selected from core.customer.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('customer')
+                field: customer_sk
+      - name: address_sk
+        description: Canonical Address relationship key selected from core.address.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('address')
+                field: address_sk
+
+  - name: order_address_snapshot
+    description: Canonical immutable Order Address Snapshot. The grain is one order address snapshot captured at purchase time.
+    config:
+      schema: core
+      alias: order_address_snapshot
+      meta:
+        grain: one order address snapshot
+        model_class: canonical event snapshot
+        maturity: certified
+        intended_consumers: [core, mart_facts, cross_cutting_quality_controls]
+    columns:
+      - name: order_address_snapshot_sk
+        description: Surrogate key for the immutable order address snapshot.
+        data_tests: [not_null, unique]
+      - name: order_address_snapshot_id
+        description: Natural order address snapshot key.
+        data_tests: [not_null, unique]
+      - name: order_sk
+        description: Canonical Order relationship key selected from core.orders.
+        data_tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('order')
+                field: order_sk
+      - name: customer_sk
+        description: Canonical Customer relationship key selected from core.customer.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('customer')
+                field: customer_sk
+
+  - name: customer_marketing_exclusion
+    description: >
+      Canonical, business-maintained record of a customer marketing-exclusion decision.
+      Sourced from the governed Manual Inputs pattern (seeds/inputs -> stg_inputs__customer_marketing_exclusions),
+      it is treated the same way as customer_user/customer_address: a source-native
+      relationship-shaped record with its own validity window, so it lives in Core.
+      See docs/architecture.md for the Manual Inputs pattern.
+    config:
+      schema: core
+      alias: customer_marketing_exclusion
+      meta:
+        grain: one customer marketing-exclusion decision
+        model_class: canonical business-maintained input
+        maturity: certified
+        intended_consumers: [operational]
+    columns:
+      - name: customer_id
+        description: Customer the exclusion decision applies to.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('customer')
+                field: customer_id
+      - name: is_excluded
+        description: True when the customer is currently excluded from marketing.
+        data_tests: [not_null]
+      - name: exclusion_reason
+        description: Business reason for the exclusion or reinstatement decision.
+        data_tests: [not_null]
+      - name: valid_from
+        description: When this exclusion decision took effect.
+        data_tests: [not_null]
+      - name: valid_to
+        description: When this exclusion decision was superseded, if it has been.
+      - name: updated_by
+        description: Auditable owner of the correction/override (email placeholder).
+        data_tests: [not_null]
+      - name: updated_at
+        description: When this record was last written, for auditability.
+        data_tests: [not_null]

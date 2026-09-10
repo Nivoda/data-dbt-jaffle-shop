@@ -1,0 +1,72 @@
+version: 2
+
+sources:
+  - name: ecom
+    schema: raw
+    description: Static e-commerce source fixture data for the architecture playground.
+    tables:
+      - name: raw_customers
+        description: One record per person who has purchased one or more items
+      - name: raw_users
+        description: One record per user profile that can be related to a customer
+        config:
+          loaded_at_field: created_at
+          freshness:
+            warn_after: {count: 10000, period: day}
+            error_after: {count: 20000, period: day}
+      - name: raw_customer_users
+        description: One record per customer-user relationship
+        config:
+          loaded_at_field: valid_from
+          freshness:
+            warn_after: {count: 10000, period: day}
+            error_after: {count: 20000, period: day}
+      - name: raw_addresses
+        description: One record per customer address
+        config:
+          loaded_at_field: created_at
+          freshness:
+            warn_after: {count: 10000, period: day}
+            error_after: {count: 20000, period: day}
+      - name: raw_customer_addresses
+        description: One record per customer-address relationship
+        config:
+          loaded_at_field: valid_from
+          freshness:
+            warn_after: {count: 10000, period: day}
+            error_after: {count: 20000, period: day}
+      - name: raw_order_address_snapshots
+        description: One immutable address snapshot captured for an order
+        config:
+          loaded_at_field: captured_at
+          freshness:
+            warn_after: {count: 10000, period: day}
+            error_after: {count: 20000, period: day}
+      - name: raw_orders
+        description: One record per order (consisting of one or more order items)
+        config:
+          loaded_at_field: ordered_at
+          freshness:
+            warn_after: {count: 10000, period: day}
+            error_after: {count: 20000, period: day}
+      - name: raw_items
+        description: Items included in an order
+      - name: raw_products
+        description: One record per SKU for items sold in stores
+
+  - name: inputs
+    schema: inputs
+    description: >
+      Governed manual/business-maintained inputs. Physically separate from the
+      `raw` schema used by ordinary application seeds. In production this maps to
+      RAW.INPUTS (see docs/architecture.md); locally it is loaded as a seed
+      fixture, materialized into its own `inputs` schema, that demonstrates the
+      same contract.
+    tables:
+      - name: raw_customer_marketing_exclusions
+        description: One record per customer marketing-exclusion decision, corrections/overrides are auditable via valid_from/valid_to and updated_by/updated_at.
+        config:
+          loaded_at_field: updated_at
+          freshness:
+            warn_after: {count: 10000, period: day}
+            error_after: {count: 20000, period: day}
